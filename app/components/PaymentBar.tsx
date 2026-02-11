@@ -12,25 +12,28 @@ import ReceiptPreview from "./ReceiptPreview";
  * - Tidak support iOS Safari
  */
 async function printViaBluetooth(text: string) {
-  if (!navigator.bluetooth) {
+  const nav = navigator as any;
+
+  if (!nav.bluetooth) {
     alert("Browser tidak mendukung Bluetooth printing");
     return;
   }
 
   try {
-    const device = await navigator.bluetooth.requestDevice({
+    const device = await nav.bluetooth.requestDevice({
       acceptAllDevices: true,
-      optionalServices: [0xffe0], // umum untuk ESC/POS
+      optionalServices: [0xffe0],
     });
 
-    const server = await device.gatt!.connect();
+    const server = await device.gatt?.connect();
+    if (!server) throw new Error("Gagal connect GATT");
+
     const service = await server.getPrimaryService(0xffe0);
     const characteristic = await service.getCharacteristic(0xffe1);
 
     const encoder = new TextEncoder();
     await characteristic.writeValue(encoder.encode(text));
   } catch (err: any) {
-    // USER CANCELLED → NORMAL
     if (err?.name === "NotFoundError" || err?.name === "AbortError") {
       console.info("Print dibatalkan oleh user");
       return;
