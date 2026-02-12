@@ -6,47 +6,81 @@ import { api } from "../lib/api";
 import ReceiptPreview from "./ReceiptPreview";
 
 /**
- * Print via Web Bluetooth (ESC/POS)
- * NOTE:
- * - Jalan di Chrome / Edge / Android Chrome
- * - Tidak support iOS Safari
+ * Bluetooth ESC/POS Print
  */
 async function printViaBluetooth(text: string) {
   const nav = navigator as any;
 
   if (!nav.bluetooth) {
-    alert("Browser tidak mendukung Bluetooth printing");
-    return;
+    throw new Error("Bluetooth not supported");
   }
 
-  try {
-    const device = await nav.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [0xffe0],
-    });
+  const device = await nav.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: [0xffe0],
+  });
 
-    const server = await device.gatt?.connect();
-    if (!server) throw new Error("Gagal connect GATT");
+  const server = await device.gatt?.connect();
+  if (!server) throw new Error("Gagal connect GATT");
 
-    const service = await server.getPrimaryService(0xffe0);
-    const characteristic = await service.getCharacteristic(0xffe1);
+  const service = await server.getPrimaryService(0xffe0);
+  const characteristic = await service.getCharacteristic(0xffe1);
 
-    const encoder = new TextEncoder();
-    await characteristic.writeValue(encoder.encode(text));
-  } catch (err: any) {
-    if (err?.name === "NotFoundError" || err?.name === "AbortError") {
-      console.info("Print dibatalkan oleh user");
-      return;
-    }
+  const encoder = new TextEncoder();
+  await characteristic.writeValue(encoder.encode(text));
+}
 
-    console.error("Bluetooth print error:", err);
-    alert("Print gagal");
-  }
+/**
+ * Web Print Fallback (Universal)
+ */
+function printViaWeb(receiptText: string) {
+  const win = window.open("", "_blank");
+  if (!win) return;
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>Print Receipt</title>
+        <style>
+          body {
+            font-family: monospace;
+            white-space: pre;
+            font-size: 14px;
+            color: black;
+          }
+        </style>
+      </head>
+      <body>
+${receiptText}
+      </body>
+    </html>
+  `);
+
+  win.document.close();
+  win.focus();
+  win.print();
 }
 
 export default function PaymentBar() {
-  const { items, total, clear } = useCart();
+  const { items, clear } = useCart();
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
+
+  const handleAutoPrint = async (receiptText: string) => {
+    setPrinting(true);
+
+    try {
+      // 🔵 Try Bluetooth first
+      await printViaBluetooth(receiptText);
+    } catch (err: any) {
+      console.warn("Bluetooth gagal → fallback Web Print", err);
+
+      // 🟢 Fallback universal print
+      printViaWeb(receiptText);
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   const pay = async (method: "cash" | "qris") => {
     if (!items.length) {
@@ -66,27 +100,26 @@ export default function PaymentBar() {
 
       const transactionId = res.data.id;
 
-      // SIMPAN TRANSAKSI TERAKHIR (UNTUK PRINT ULANG)
       localStorage.setItem(
         "last_transaction_id",
         String(transactionId)
       );
 
-      // 2️⃣ AMBIL RECEIPT DARI BACKEND
-      let receiptText = "";
-      try {
-        const printRes = await api.post(`/print/${transactionId}`);
-        receiptText = printRes.data.receipt;
-      } catch (e) {
-        console.error("Gagal ambil receipt", e);
+      // 2️⃣ AMBIL RECEIPT
+      const printRes = await api.post(`/print/${transactionId}`);
+      const receiptText = printRes.data.receipt;
+
+      if (!receiptText) {
+        alert("Struk tidak tersedia");
+        return;
       }
 
-      // 3️⃣ TAMPILKAN PREVIEW STRUK
-      if (receiptText) {
-        setPreviewReceipt(receiptText);
-      }
+      // 3️⃣ AUTO PRINT
+      await handleAutoPrint(receiptText);
 
-      // 4️⃣ CLEAR CART & SUCCESS
+      // 4️⃣ TAMPILKAN PREVIEW (optional, bisa dihapus kalau mau silent)
+      setPreviewReceipt(receiptText);
+
       clear();
       alert("Transaksi sukses!");
     } catch (e) {
@@ -112,6 +145,7 @@ export default function PaymentBar() {
       }
 
       setPreviewReceipt(receiptText);
+      await handleAutoPrint(receiptText);
     } catch (e) {
       console.error(e);
       alert("Gagal print ulang");
@@ -123,18 +157,20 @@ export default function PaymentBar() {
       <div className="mt-auto space-y-2">
         <button
           type="button"
-          className="w-full bg-green-600 text-white py-3 rounded-lg"
+          className="w-full bg-green-600 text-white py-3 rounded-lg disabled:opacity-50"
           onClick={() => pay("cash")}
+          disabled={printing}
         >
-          CASH
+          {printing ? "Printing..." : "CASH"}
         </button>
 
         <button
           type="button"
-          className="w-full bg-blue-600 text-white py-3 rounded-lg"
+          className="w-full bg-blue-600 text-white py-3 rounded-lg disabled:opacity-50"
           onClick={() => pay("qris")}
+          disabled={printing}
         >
-          QRIS
+          {printing ? "Printing..." : "QRIS"}
         </button>
 
         <button
@@ -146,14 +182,12 @@ export default function PaymentBar() {
         </button>
       </div>
 
-      {/* PREVIEW STRUK (DEV MODE & FALLBACK) */}
       {previewReceipt && (
         <ReceiptPreview
           receipt={previewReceipt}
           onClose={() => setPreviewReceipt(null)}
           onPrint={async () => {
-            await printViaBluetooth(previewReceipt);
-            setPreviewReceipt(null);
+            await handleAutoPrint(previewReceipt);
           }}
         />
       )}
