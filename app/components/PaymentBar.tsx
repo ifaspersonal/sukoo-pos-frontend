@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { api } from "../lib/api";
 import ReceiptPreview from "./ReceiptPreview";
@@ -74,6 +74,42 @@ export default function PaymentBar() {
 
   // 🔥 Redeem
   const [redeemPoints, setRedeemPoints] = useState<number>(0);
+  const [customerPoints, setCustomerPoints] = useState<number | null>(null);
+
+  /**
+   * 🔥 Fetch saldo poin real-time
+   */
+  useEffect(() => {
+    const fetchCustomer = async () => {
+      if (!enableLoyalty || !customerPhone || customerPhone.length < 5) {
+        setCustomerPoints(null);
+        return;
+      }
+
+      try {
+        const res = await api.get(
+          `/customers/by-phone/${customerPhone}`
+        );
+
+        if (res.data.exists) {
+          setCustomerPoints(res.data.points || 0);
+          if (!customerName) {
+            setCustomerName(res.data.name || "");
+          }
+        } else {
+          setCustomerPoints(0);
+        }
+      } catch (err) {
+        console.error("Customer lookup failed", err);
+      }
+    };
+
+    fetchCustomer();
+  }, [customerPhone, enableLoyalty]);
+
+  const redeemInvalid =
+    customerPoints !== null &&
+    redeemPoints > (customerPoints || 0);
 
   const handleAutoPrint = async (receiptText: string) => {
     setPrinting(true);
@@ -94,6 +130,11 @@ export default function PaymentBar() {
       return;
     }
 
+    if (redeemInvalid) {
+      alert("Poin tidak cukup");
+      return;
+    }
+
     try {
       const res = await api.post("/transactions/", {
         items: items.map((i) => ({
@@ -101,12 +142,8 @@ export default function PaymentBar() {
           qty: i.qty,
         })),
         payment_method: method,
-
-        // Loyalty optional
         customer_phone: enableLoyalty ? customerPhone || null : null,
         customer_name: enableLoyalty ? customerName || null : null,
-
-        // 🔥 Redeem points (NEW)
         redeem_points:
           enableLoyalty && redeemPoints > 0 ? redeemPoints : 0,
       });
@@ -133,6 +170,7 @@ export default function PaymentBar() {
       setCustomerPhone("");
       setCustomerName("");
       setRedeemPoints(0);
+      setCustomerPoints(null);
       setEnableLoyalty(false);
 
       clear();
@@ -192,6 +230,12 @@ export default function PaymentBar() {
                 className="w-full border rounded-lg p-2 text-black"
               />
 
+              {customerPoints !== null && (
+                <div className="text-sm font-medium text-green-600">
+                  Saldo Poin: {customerPoints}
+                </div>
+              )}
+
               <input
                 type="text"
                 placeholder="Nama (opsional)"
@@ -209,8 +253,16 @@ export default function PaymentBar() {
                 onChange={(e) =>
                   setRedeemPoints(Number(e.target.value))
                 }
-                className="w-full border rounded-lg p-2 text-black"
+                className={`w-full border rounded-lg p-2 text-black ${
+                  redeemInvalid ? "border-red-500" : ""
+                }`}
               />
+
+              {redeemInvalid && (
+                <div className="text-xs text-red-500">
+                  Poin tidak cukup
+                </div>
+              )}
 
               <div className="text-xs text-gray-500">
                 1 poin = potongan sesuai rule backend.
@@ -224,7 +276,7 @@ export default function PaymentBar() {
           type="button"
           className="w-full bg-green-600 text-white py-3 rounded-lg disabled:opacity-50"
           onClick={() => pay("cash")}
-          disabled={printing}
+          disabled={printing || redeemInvalid}
         >
           {printing ? "Printing..." : "CASH"}
         </button>
@@ -233,7 +285,7 @@ export default function PaymentBar() {
           type="button"
           className="w-full bg-blue-600 text-white py-3 rounded-lg disabled:opacity-50"
           onClick={() => pay("qris")}
-          disabled={printing}
+          disabled={printing || redeemInvalid}
         >
           {printing ? "Printing..." : "QRIS"}
         </button>
