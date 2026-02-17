@@ -90,7 +90,7 @@ export default function PaymentBar() {
 
     try {
       // 1️⃣ CREATE TRANSACTION
-      const res = await api.post("/transactions", {
+      const res = await api.post("/transactions/", {
         items: items.map((i) => ({
           product_id: i.product_id,
           qty: i.qty,
@@ -106,7 +106,7 @@ export default function PaymentBar() {
       );
 
       // 2️⃣ AMBIL RECEIPT
-      const printRes = await api.post(`/print/${transactionId}`);
+      const printRes = await api.post(`/print/${transactionId}/`);
       const receiptText = printRes.data.receipt;
 
       if (!receiptText) {
