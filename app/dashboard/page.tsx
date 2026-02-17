@@ -20,7 +20,6 @@ export default function DashboardPage() {
 
       let url = `/reports?period=${selected}`;
 
-      // override pakai custom date
       if (start && end) {
         url = `/reports?start=${start}&end=${end}`;
       }
@@ -57,7 +56,6 @@ export default function DashboardPage() {
           📊 Sales Dashboard
         </h1>
 
-        {/* Period Toggle */}
         <div className="flex gap-2">
           {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
             <button
@@ -98,28 +96,43 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Date Range Info */}
       <div className="text-sm text-gray-600">
         {data.start_date} → {data.end_date}
       </div>
 
       {/* ================= KPI ================= */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card title="Revenue" value={`Rp ${data.total_revenue.toLocaleString()}`} />
+        <Card title="Profit" value={`Rp ${data.profit.toLocaleString()}`} />
+        <Card title="Sale Tx" value={data.total_transactions} />
+        <Card title="Redeem Tx" value={data.redeem_transactions || 0} />
+      </div>
+
+      {/* ================= LOYALTY KPI ================= */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card
-          title="Revenue"
-          value={`Rp ${data.total_revenue.toLocaleString()}`}
+          title="Points Earned"
+          value={data.total_points_earned || 0}
         />
         <Card
-          title="Profit"
-          value={`Rp ${data.profit.toLocaleString()}`}
+          title="Points Redeemed"
+          value={data.total_points_redeemed || 0}
         />
         <Card
-          title="Transactions"
-          value={data.total_transactions}
+          title="Net Points"
+          value={data.net_points || 0}
+        />
+      </div>
+
+      {/* ================= PAYMENT BREAKDOWN ================= */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card
+          title="Cash"
+          value={`Rp ${data.cash_total.toLocaleString()}`}
         />
         <Card
-          title="Cash / QRIS"
-          value={`Rp ${data.cash_total.toLocaleString()} / Rp ${data.qris_total.toLocaleString()}`}
+          title="QRIS"
+          value={`Rp ${data.qris_total.toLocaleString()}`}
         />
       </div>
 
@@ -182,15 +195,28 @@ export default function DashboardPage() {
         {data.transactions?.map((tx: any) => (
           <div
             key={tx.id}
-            className="flex justify-between py-2 border-b last:border-none cursor-pointer hover:bg-stone-50 transition"
+            className="flex justify-between items-center py-2 border-b last:border-none cursor-pointer hover:bg-stone-50 transition"
             onClick={async () => {
               const res = await api.get(`/reports/transaction/${tx.id}`);
               setSelectedTx(res.data);
             }}
           >
-            <span>#{tx.id}</span>
-            <span className="text-sm">
-              {tx.payment_method.toUpperCase()}
+            <div className="flex items-center gap-2">
+              <span>#{tx.id}</span>
+
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  tx.type === "redeem"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {tx.type?.toUpperCase()}
+              </span>
+            </div>
+
+            <span className="text-sm font-medium">
+              Rp {tx.total.toLocaleString()}
             </span>
           </div>
         ))}
@@ -200,12 +226,24 @@ export default function DashboardPage() {
       {selectedTx && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md">
-            <h3 className="font-bold text-lg mb-3">
+            <h3 className="font-bold text-lg mb-2">
               Transaction #{selectedTx.id}
             </h3>
 
-            <div className="text-sm text-gray-500 mb-4">
+            <div className="text-sm text-gray-500 mb-2">
               {new Date(selectedTx.created_at).toLocaleString()}
+            </div>
+
+            <div className="mb-4">
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  selectedTx.type === "redeem"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {selectedTx.type?.toUpperCase()}
+              </span>
             </div>
 
             {selectedTx.items.map((item: any, i: number) => (
@@ -221,6 +259,10 @@ export default function DashboardPage() {
                 </span>
               </div>
             ))}
+
+            <div className="mt-4 font-bold text-right">
+              Total: Rp {selectedTx.total.toLocaleString()}
+            </div>
 
             <button
               onClick={() => setSelectedTx(null)}
