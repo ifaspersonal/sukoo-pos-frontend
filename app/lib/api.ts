@@ -5,7 +5,7 @@ const baseURL =
 
 export const api = axios.create({
   baseURL,
-  timeout: 10000, // 10 detik biar tidak nge-hang
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -14,21 +14,14 @@ export const api = axios.create({
 /**
  * REQUEST INTERCEPTOR
  * - Inject JWT
- * - Pastikan trailing slash supaya tidak 307 redirect
  */
 api.interceptors.request.use(
   (config) => {
-    // 🔐 Inject token hanya di browser
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
-    }
-
-    // 🔧 Hindari 307 karena missing trailing slash
-    if (config.url && !config.url.endsWith("/")) {
-      config.url = config.url + "/";
     }
 
     return config;
@@ -38,7 +31,6 @@ api.interceptors.request.use(
 
 /**
  * RESPONSE INTERCEPTOR
- * - Handle 401 auto logout
  */
 api.interceptors.response.use(
   (response) => response,
