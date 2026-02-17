@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useCart } from "../context/CartContext";
 import { api } from "../lib/api";
 import ReceiptPreview from "./ReceiptPreview";
@@ -67,18 +67,28 @@ export default function PaymentBar() {
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
 
-  // 🔥 Loyalty
+  // Loyalty
   const [enableLoyalty, setEnableLoyalty] = useState(false);
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
 
-  // 🔥 Redeem
+  // Redeem
   const [redeemPoints, setRedeemPoints] = useState<number>(0);
   const [customerPoints, setCustomerPoints] = useState<number | null>(null);
 
-  /**
-   * 🔥 Fetch saldo poin real-time
-   */
+  // ==============================
+  // HITUNG TOTAL CART
+  // ==============================
+  const cartTotal = useMemo(() => {
+    return items.reduce(
+      (sum, i) => sum + i.price * i.qty,
+      0
+    );
+  }, [items]);
+
+  // ==============================
+  // FETCH CUSTOMER POINT
+  // ==============================
   useEffect(() => {
     const fetchCustomer = async () => {
       if (!enableLoyalty || !customerPhone || customerPhone.length < 5) {
@@ -111,27 +121,33 @@ export default function PaymentBar() {
     customerPoints !== null &&
     redeemPoints > (customerPoints || 0);
 
+  const fullRedeemAvailable =
+    enableLoyalty &&
+    customerPoints !== null &&
+    customerPoints >= cartTotal &&
+    cartTotal > 0;
+
   const handleAutoPrint = async (receiptText: string) => {
     setPrinting(true);
 
     try {
       await printViaBluetooth(receiptText);
-    } catch (err: any) {
-      console.warn("Bluetooth gagal → fallback Web Print", err);
+    } catch {
       printViaWeb(receiptText);
     } finally {
       setPrinting(false);
     }
   };
 
-  const pay = async (method: "cash" | "qris") => {
+  // ==============================
+  // GENERIC PAY FUNCTION
+  // ==============================
+  const pay = async (
+    method: "cash" | "qris" | "redeem",
+    forceRedeemPoints?: number
+  ) => {
     if (!items.length) {
       alert("Cart masih kosong");
-      return;
-    }
-
-    if (redeemInvalid) {
-      alert("Poin tidak cukup");
       return;
     }
 
@@ -145,7 +161,11 @@ export default function PaymentBar() {
         customer_phone: enableLoyalty ? customerPhone || null : null,
         customer_name: enableLoyalty ? customerName || null : null,
         redeem_points:
-          enableLoyalty && redeemPoints > 0 ? redeemPoints : 0,
+          method === "redeem"
+            ? forceRedeemPoints
+            : enableLoyalty && redeemPoints > 0
+            ? redeemPoints
+            : 0,
       });
 
       const transactionId = res.data.id;
@@ -199,8 +219,7 @@ export default function PaymentBar() {
 
       setPreviewReceipt(receiptText);
       await handleAutoPrint(receiptText);
-    } catch (e) {
-      console.error(e);
+    } catch {
       alert("Gagal print ulang");
     }
   };
@@ -209,7 +228,7 @@ export default function PaymentBar() {
     <>
       <div className="mt-auto space-y-3">
 
-        {/* 🔥 Loyalty Section */}
+        {/* LOYALTY */}
         <div className="bg-white p-3 rounded-xl shadow space-y-3">
           <label className="flex items-center gap-2 text-sm font-medium text-black">
             <input
@@ -244,7 +263,7 @@ export default function PaymentBar() {
                 className="w-full border rounded-lg p-2 text-black"
               />
 
-              {/* 🔥 Redeem Input */}
+              {/* Partial Redeem */}
               <input
                 type="number"
                 placeholder="Redeem poin (opsional)"
@@ -263,13 +282,22 @@ export default function PaymentBar() {
                   Poin tidak cukup
                 </div>
               )}
-
-              <div className="text-xs text-gray-500">
-                1 poin = potongan sesuai rule backend.
-              </div>
             </>
           )}
         </div>
+
+        {/* FULL REDEEM BUTTON */}
+        {fullRedeemAvailable && (
+          <button
+            type="button"
+            className="w-full bg-purple-600 text-white py-3 rounded-lg"
+            onClick={() =>
+              pay("redeem", cartTotal)
+            }
+          >
+            🎁 REDEEM GRATIS
+          </button>
+        )}
 
         {/* PAYMENT BUTTONS */}
         <button
