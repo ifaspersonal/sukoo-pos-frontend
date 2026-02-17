@@ -1,66 +1,3 @@
-"use client";
-
-import { useState, useEffect, useMemo } from "react";
-import { useCart } from "../context/CartContext";
-import { api } from "../lib/api";
-import ReceiptPreview from "./ReceiptPreview";
-
-/**
- * Bluetooth ESC/POS Print
- */
-async function printViaBluetooth(text: string) {
-  const nav = navigator as any;
-
-  if (!nav.bluetooth) {
-    throw new Error("Bluetooth not supported");
-  }
-
-  const device = await nav.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: [0xffe0],
-  });
-
-  const server = await device.gatt?.connect();
-  if (!server) throw new Error("Gagal connect GATT");
-
-  const service = await server.getPrimaryService(0xffe0);
-  const characteristic = await service.getCharacteristic(0xffe1);
-
-  const encoder = new TextEncoder();
-  await characteristic.writeValue(encoder.encode(text));
-}
-
-/**
- * Web Print fallback
- */
-function printViaWeb(receiptText: string) {
-  const win = window.open("", "_blank");
-  if (!win) return;
-
-  win.document.write(`
-    <html>
-      <head>
-        <title>Print Receipt</title>
-        <style>
-          body {
-            font-family: monospace;
-            white-space: pre;
-            font-size: 14px;
-            color: black;
-          }
-        </style>
-      </head>
-      <body>
-${receiptText}
-      </body>
-    </html>
-  `);
-
-  win.document.close();
-  win.focus();
-  win.print();
-}
-
 export default function PaymentBar() {
   const { items, clear } = useCart();
 
@@ -77,13 +14,10 @@ export default function PaymentBar() {
   const [customerPoints, setCustomerPoints] = useState<number | null>(null);
 
   // ==============================
-  // HITUNG TOTAL CART
+  // TOTAL QTY (bukan total harga)
   // ==============================
-  const cartTotal = useMemo(() => {
-    return items.reduce(
-      (sum, i) => sum + i.price * i.qty,
-      0
-    );
+  const totalQty = useMemo(() => {
+    return items.reduce((sum, i) => sum + i.qty, 0);
   }, [items]);
 
   // ==============================
@@ -109,27 +43,33 @@ export default function PaymentBar() {
         } else {
           setCustomerPoints(0);
         }
-      } catch (err) {
-        console.error("Customer lookup failed", err);
+      } catch {
+        setCustomerPoints(null);
       }
     };
 
     fetchCustomer();
   }, [customerPhone, enableLoyalty]);
 
+  // ==============================
+  // VALIDATION
+  // ==============================
   const redeemInvalid =
-    customerPoints !== null &&
-    redeemPoints > (customerPoints || 0);
+    redeemPoints % 10 !== 0 ||
+    (customerPoints !== null && redeemPoints > (customerPoints || 0));
+
+  // Full redeem rule:
+  // 10 poin per 1 qty
+  const requiredFullRedeemPoints = totalQty * 10;
 
   const fullRedeemAvailable =
     enableLoyalty &&
     customerPoints !== null &&
-    customerPoints >= cartTotal &&
-    cartTotal > 0;
+    customerPoints >= requiredFullRedeemPoints &&
+    totalQty > 0;
 
   const handleAutoPrint = async (receiptText: string) => {
     setPrinting(true);
-
     try {
       await printViaBluetooth(receiptText);
     } catch {
@@ -140,7 +80,7 @@ export default function PaymentBar() {
   };
 
   // ==============================
-  // GENERIC PAY FUNCTION
+  // PAY FUNCTION
   // ==============================
   const pay = async (
     method: "cash" | "qris" | "redeem",
@@ -196,7 +136,6 @@ export default function PaymentBar() {
       clear();
       alert("Transaksi sukses!");
     } catch (e: any) {
-      console.error(e);
       alert(e?.response?.data?.detail || "Transaksi gagal");
     }
   };
@@ -211,12 +150,7 @@ export default function PaymentBar() {
     try {
       const res = await api.post(`/print/${lastId}`);
       const receiptText = res.data.receipt;
-
-      if (!receiptText) {
-        alert("Struk tidak tersedia");
-        return;
-      }
-
+      if (!receiptText) return;
       setPreviewReceipt(receiptText);
       await handleAutoPrint(receiptText);
     } catch {
@@ -266,9 +200,10 @@ export default function PaymentBar() {
               {/* Partial Redeem */}
               <input
                 type="number"
-                placeholder="Redeem poin (opsional)"
+                placeholder="Redeem poin (kelipatan 10)"
                 value={redeemPoints || ""}
                 min={0}
+                step={10}
                 onChange={(e) =>
                   setRedeemPoints(Number(e.target.value))
                 }
@@ -279,7 +214,7 @@ export default function PaymentBar() {
 
               {redeemInvalid && (
                 <div className="text-xs text-red-500">
-                  Poin tidak cukup
+                  Redeem harus kelipatan 10 & tidak melebihi saldo
                 </div>
               )}
             </>
@@ -292,10 +227,10 @@ export default function PaymentBar() {
             type="button"
             className="w-full bg-purple-600 text-white py-3 rounded-lg"
             onClick={() =>
-              pay("redeem", cartTotal)
+              pay("redeem", requiredFullRedeemPoints)
             }
           >
-            🎁 REDEEM GRATIS
+            🎁 REDEEM GRATIS ({requiredFullRedeemPoints} poin)
           </button>
         )}
 
