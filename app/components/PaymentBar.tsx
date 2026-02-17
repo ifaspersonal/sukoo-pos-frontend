@@ -106,7 +106,7 @@ export default function PaymentBar() {
       );
 
       // 2️⃣ AMBIL RECEIPT
-      const printRes = await api.post(`/print/${transactionId}/`);
+      const printRes = await api.post(`/print/${transactionId}`);
       const receiptText = printRes.data.receipt;
 
       if (!receiptText) {
