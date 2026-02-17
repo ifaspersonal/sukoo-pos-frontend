@@ -31,7 +31,7 @@ async function printViaBluetooth(text: string) {
 }
 
 /**
- * Web Print Fallback (Universal)
+ * Web Print fallback
  */
 function printViaWeb(receiptText: string) {
   const win = window.open("", "_blank");
@@ -67,10 +67,13 @@ export default function PaymentBar() {
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
 
-  // 🔥 Loyalty State
+  // 🔥 Loyalty
   const [enableLoyalty, setEnableLoyalty] = useState(false);
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
+
+  // 🔥 Redeem
+  const [redeemPoints, setRedeemPoints] = useState<number>(0);
 
   const handleAutoPrint = async (receiptText: string) => {
     setPrinting(true);
@@ -92,9 +95,6 @@ export default function PaymentBar() {
     }
 
     try {
-      // ==========================
-      // CREATE TRANSACTION
-      // ==========================
       const res = await api.post("/transactions/", {
         items: items.map((i) => ({
           product_id: i.product_id,
@@ -102,14 +102,13 @@ export default function PaymentBar() {
         })),
         payment_method: method,
 
-        // 🔥 Loyalty optional
-        customer_phone: enableLoyalty
-          ? customerPhone || null
-          : null,
+        // Loyalty optional
+        customer_phone: enableLoyalty ? customerPhone || null : null,
+        customer_name: enableLoyalty ? customerName || null : null,
 
-        customer_name: enableLoyalty
-          ? customerName || null
-          : null,
+        // 🔥 Redeem points (NEW)
+        redeem_points:
+          enableLoyalty && redeemPoints > 0 ? redeemPoints : 0,
       });
 
       const transactionId = res.data.id;
@@ -119,9 +118,6 @@ export default function PaymentBar() {
         String(transactionId)
       );
 
-      // ==========================
-      // GET RECEIPT
-      // ==========================
       const printRes = await api.post(`/print/${transactionId}`);
       const receiptText = printRes.data.receipt;
 
@@ -130,23 +126,20 @@ export default function PaymentBar() {
         return;
       }
 
-      // ==========================
-      // AUTO PRINT
-      // ==========================
       await handleAutoPrint(receiptText);
-
       setPreviewReceipt(receiptText);
 
-      // Reset loyalty form
+      // reset state
       setCustomerPhone("");
       setCustomerName("");
+      setRedeemPoints(0);
       setEnableLoyalty(false);
 
       clear();
       alert("Transaksi sukses!");
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Transaksi gagal");
+      alert(e?.response?.data?.detail || "Transaksi gagal");
     }
   };
 
@@ -178,19 +171,19 @@ export default function PaymentBar() {
     <>
       <div className="mt-auto space-y-3">
 
-        {/* 🔥 Loyalty Toggle */}
-        <div className="bg-white p-3 rounded-xl shadow space-y-2">
+        {/* 🔥 Loyalty Section */}
+        <div className="bg-white p-3 rounded-xl shadow space-y-3">
           <label className="flex items-center gap-2 text-sm font-medium text-black">
             <input
               type="checkbox"
               checked={enableLoyalty}
               onChange={(e) => setEnableLoyalty(e.target.checked)}
             />
-            Customer ingin kumpulkan poin
+            Gunakan Loyalty / Redeem Poin
           </label>
 
           {enableLoyalty && (
-            <div className="space-y-2">
+            <>
               <input
                 type="text"
                 placeholder="Nomor HP"
@@ -207,10 +200,22 @@ export default function PaymentBar() {
                 className="w-full border rounded-lg p-2 text-black"
               />
 
+              {/* 🔥 Redeem Input */}
+              <input
+                type="number"
+                placeholder="Redeem poin (opsional)"
+                value={redeemPoints || ""}
+                min={0}
+                onChange={(e) =>
+                  setRedeemPoints(Number(e.target.value))
+                }
+                className="w-full border rounded-lg p-2 text-black"
+              />
+
               <div className="text-xs text-gray-500">
-                Isi nomor HP untuk mendapatkan poin.
+                1 poin = potongan sesuai rule backend.
               </div>
-            </div>
+            </>
           )}
         </div>
 
@@ -242,7 +247,6 @@ export default function PaymentBar() {
         </button>
       </div>
 
-      {/* Receipt Preview */}
       {previewReceipt && (
         <ReceiptPreview
           receipt={previewReceipt}
