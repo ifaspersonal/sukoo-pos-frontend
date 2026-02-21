@@ -5,59 +5,6 @@ import { useCart } from "../context/CartContext";
 import { api } from "../lib/api";
 import ReceiptPreview from "./ReceiptPreview";
 
-/**
- * Bluetooth ESC/POS Print
- */
-async function printViaBluetooth(text: string) {
-  const nav = navigator as any;
-
-  if (!nav.bluetooth) {
-    throw new Error("Bluetooth not supported");
-  }
-
-  const device = await nav.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: [0xffe0],
-  });
-
-  const server = await device.gatt?.connect();
-  if (!server) throw new Error("Gagal connect GATT");
-
-  const service = await server.getPrimaryService(0xffe0);
-  const characteristic = await service.getCharacteristic(0xffe1);
-
-  const encoder = new TextEncoder();
-  await characteristic.writeValue(encoder.encode(text));
-}
-
-function printViaWeb(receiptText: string) {
-  const win = window.open("", "_blank");
-  if (!win) return;
-
-  win.document.write(`
-    <html>
-      <head>
-        <title>Print Receipt</title>
-        <style>
-          body {
-            font-family: monospace;
-            white-space: pre;
-            font-size: 14px;
-            color: black;
-          }
-        </style>
-      </head>
-      <body>
-${receiptText}
-      </body>
-    </html>
-  `);
-
-  win.document.close();
-  win.focus();
-  win.print();
-}
-
 export default function PaymentBar() {
   const { items, clear } = useCart();
 
@@ -117,12 +64,27 @@ export default function PaymentBar() {
     customerPoints !== null &&
     customerPoints >= 10;
 
+  // ==============================
+  // RAWBT INTENT PRINT
+  // ==============================
   const handleAutoPrint = async (receiptText: string) => {
-    setPrinting(true);
     try {
-      await printViaBluetooth(receiptText);
-    } catch {
-      printViaWeb(receiptText);
+      setPrinting(true);
+
+      const encoded = encodeURIComponent(receiptText);
+
+      const intentUrl =
+        "intent:print?text=" +
+        encoded +
+        "#Intent;" +
+        "scheme=rawbt;" +
+        "package=ru.a402d.rawbtprinter;" +
+        "end;";
+
+      window.location.href = intentUrl;
+    } catch (err) {
+      console.error("RawBT intent failed", err);
+      alert("Gagal kirim ke printer");
     } finally {
       setPrinting(false);
     }
@@ -246,7 +208,7 @@ export default function PaymentBar() {
           )}
         </div>
 
-        {/* 🎁 REDEEM BUTTON (10 points = 1 drink) */}
+        {/* 🎁 REDEEM BUTTON */}
         {redeemAvailable && (
           <button
             type="button"
