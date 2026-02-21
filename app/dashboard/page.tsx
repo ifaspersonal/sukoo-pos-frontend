@@ -5,6 +5,22 @@ import { api } from "../lib/api";
 
 type Period = "daily" | "weekly" | "monthly";
 
+/* ==============================
+   WIB FORMATTER (SAFE)
+============================== */
+const formatWIB = (dateString: string) => {
+  if (!dateString) return "-";
+
+  return new Date(dateString).toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
   const [period, setPeriod] = useState<Period>("daily");
@@ -110,30 +126,15 @@ export default function DashboardPage() {
 
       {/* ================= LOYALTY KPI ================= */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card
-          title="Points Earned"
-          value={data.total_points_earned || 0}
-        />
-        <Card
-          title="Points Redeemed"
-          value={data.total_points_redeemed || 0}
-        />
-        <Card
-          title="Net Points"
-          value={data.net_points || 0}
-        />
+        <Card title="Points Earned" value={data.total_points_earned || 0} />
+        <Card title="Points Redeemed" value={data.total_points_redeemed || 0} />
+        <Card title="Net Points" value={data.net_points || 0} />
       </div>
 
       {/* ================= PAYMENT BREAKDOWN ================= */}
       <div className="grid grid-cols-2 gap-4">
-        <Card
-          title="Cash"
-          value={`Rp ${data.cash_total.toLocaleString()}`}
-        />
-        <Card
-          title="QRIS"
-          value={`Rp ${data.qris_total.toLocaleString()}`}
-        />
+        <Card title="Cash" value={`Rp ${data.cash_total.toLocaleString()}`} />
+        <Card title="QRIS" value={`Rp ${data.qris_total.toLocaleString()}`} />
       </div>
 
       {/* ================= TOP PRODUCTS ================= */}
@@ -231,7 +232,7 @@ export default function DashboardPage() {
             </h3>
 
             <div className="text-sm text-gray-500 mb-2">
-              {new Date(selectedTx.created_at).toLocaleString()}
+              {formatWIB(selectedTx.created_at)}
             </div>
 
             <div className="mb-4">
