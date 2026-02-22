@@ -6,15 +6,12 @@ import { api } from "../lib/api";
 type Period = "daily" | "weekly" | "monthly";
 
 /* ==============================
-   WIB FORMATTER
+   WIB FORMATTER (SAFE)
 ============================== */
 const formatWIB = (dateString: string) => {
   if (!dateString) return "-";
 
-  // Paksa treat sebagai UTC
-  const utcDate = new Date(dateString + "Z");
-
-  return utcDate.toLocaleString("id-ID", {
+  return new Date(dateString).toLocaleString("id-ID", {
     timeZone: "Asia/Jakarta",
     day: "2-digit",
     month: "2-digit",
@@ -25,7 +22,7 @@ const formatWIB = (dateString: string) => {
 };
 
 /* ==============================
-   FIX HOURLY UTC → WIB
+   HOURLY UTC → WIB
 ============================== */
 const toWIBHour = (utcHour: number) => {
   return (utcHour + 7) % 24;
@@ -139,13 +136,34 @@ export default function DashboardPage() {
         <Card title="Net Points" value={data.net_points || 0} />
       </div>
 
-      {/* ================= PAYMENT BREAKDOWN ================= */}
+      {/* ================= PAYMENT ================= */}
       <div className="grid grid-cols-2 gap-4">
         <Card title="Cash" value={`Rp ${data.cash_total.toLocaleString()}`} />
         <Card title="QRIS" value={`Rp ${data.qris_total.toLocaleString()}`} />
       </div>
 
-      {/* ================= HOURLY SALES + CHART ================= */}
+      {/* ================= PRODUCT SUMMARY ================= */}
+      <div className="bg-white p-4 rounded-2xl shadow">
+        <h2 className="font-bold mb-3">📦 Product Sales Summary</h2>
+
+        {data.top_products?.length === 0 && (
+          <div className="text-gray-500 text-sm">
+            No product sales in this period
+          </div>
+        )}
+
+        {data.top_products?.map((p: any, i: number) => (
+          <div
+            key={i}
+            className="flex justify-between py-2 border-b last:border-none"
+          >
+            <span>{p.name}</span>
+            <span className="font-medium">{p.qty} pcs</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ================= HOURLY SALES ================= */}
       {period === "daily" && data.hourly_sales && (
         <div className="bg-white p-4 rounded-2xl shadow">
           <h2 className="font-bold mb-3">⏰ Hourly Sales (WIB)</h2>
@@ -199,7 +217,6 @@ export default function DashboardPage() {
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span>#{tx.id}</span>
-
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${
                     tx.type === "redeem"
@@ -211,7 +228,6 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {/* WIB TIME IN LIST */}
               <span className="text-xs text-gray-500">
                 {formatWIB(tx.created_at)}
               </span>
@@ -224,7 +240,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ================= MODAL DETAIL ================= */}
+      {/* ================= MODAL ================= */}
       {selectedTx && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md">
@@ -234,18 +250,6 @@ export default function DashboardPage() {
 
             <div className="text-sm text-gray-500 mb-2">
               {formatWIB(selectedTx.created_at)}
-            </div>
-
-            <div className="mb-4">
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  selectedTx.type === "redeem"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                {selectedTx.type?.toUpperCase()}
-              </span>
             </div>
 
             {selectedTx.items.map((item: any, i: number) => (
@@ -280,7 +284,7 @@ export default function DashboardPage() {
 }
 
 /* ==============================
-   SIMPLE BAR CHART (NO LIBRARY)
+   SIMPLE BAR CHART
 ============================== */
 function HourlyChart({ data }: any) {
   if (!data || data.length === 0) return null;
@@ -298,9 +302,6 @@ function HourlyChart({ data }: any) {
               className="w-full bg-black rounded-t"
               style={{ height: `${height}%` }}
             />
-            {/* <div className="text-xs mt-1">
-              {String(d.hour).padStart(2, "0")}:00
-            </div> */}
           </div>
         );
       })}
