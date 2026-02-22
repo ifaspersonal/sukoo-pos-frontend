@@ -6,12 +6,15 @@ import { api } from "../lib/api";
 type Period = "daily" | "weekly" | "monthly";
 
 /* ==============================
-   WIB FORMATTER (SAFE)
+   WIB FORMATTER
 ============================== */
 const formatWIB = (dateString: string) => {
   if (!dateString) return "-";
 
-  return new Date(dateString).toLocaleString("id-ID", {
+  // Paksa treat sebagai UTC
+  const utcDate = new Date(dateString + "Z");
+
+  return utcDate.toLocaleString("id-ID", {
     timeZone: "Asia/Jakarta",
     day: "2-digit",
     month: "2-digit",
@@ -22,7 +25,7 @@ const formatWIB = (dateString: string) => {
 };
 
 /* ==============================
-   HOURLY UTC → WIB
+   FIX HOURLY UTC → WIB
 ============================== */
 const toWIBHour = (utcHour: number) => {
   return (utcHour + 7) % 24;
@@ -136,7 +139,7 @@ export default function DashboardPage() {
         <Card title="Net Points" value={data.net_points || 0} />
       </div>
 
-      {/* ================= PAYMENT ================= */}
+      {/* ================= PAYMENT BREAKDOWN ================= */}
       <div className="grid grid-cols-2 gap-4">
         <Card title="Cash" value={`Rp ${data.cash_total.toLocaleString()}`} />
         <Card title="QRIS" value={`Rp ${data.qris_total.toLocaleString()}`} />
@@ -163,7 +166,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ================= HOURLY SALES ================= */}
+      {/* ================= HOURLY SALES + CHART ================= */}
       {period === "daily" && data.hourly_sales && (
         <div className="bg-white p-4 rounded-2xl shadow">
           <h2 className="font-bold mb-3">⏰ Hourly Sales (WIB)</h2>
@@ -217,6 +220,7 @@ export default function DashboardPage() {
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span>#{tx.id}</span>
+
                 <span
                   className={`text-xs px-2 py-1 rounded-full ${
                     tx.type === "redeem"
@@ -228,6 +232,7 @@ export default function DashboardPage() {
                 </span>
               </div>
 
+              {/* WIB TIME IN LIST */}
               <span className="text-xs text-gray-500">
                 {formatWIB(tx.created_at)}
               </span>
@@ -240,7 +245,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ================= MODAL ================= */}
+      {/* ================= MODAL DETAIL ================= */}
       {selectedTx && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md">
@@ -250,6 +255,18 @@ export default function DashboardPage() {
 
             <div className="text-sm text-gray-500 mb-2">
               {formatWIB(selectedTx.created_at)}
+            </div>
+
+            <div className="mb-4">
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  selectedTx.type === "redeem"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {selectedTx.type?.toUpperCase()}
+              </span>
             </div>
 
             {selectedTx.items.map((item: any, i: number) => (
@@ -284,7 +301,7 @@ export default function DashboardPage() {
 }
 
 /* ==============================
-   SIMPLE BAR CHART
+   SIMPLE BAR CHART (NO LIBRARY)
 ============================== */
 function HourlyChart({ data }: any) {
   if (!data || data.length === 0) return null;
