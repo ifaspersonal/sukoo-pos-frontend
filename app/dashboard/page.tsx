@@ -79,9 +79,10 @@ export default function DashboardPage() {
 
       await api.post("/products", {
         name: newName,
-        price: Number(newPrice),
-        cost_price: Number(newCostPrice),
-        stock: newUnlimited ? 0 : Number(newStock || 0),
+        price: parseInt(String(newPrice)),
+        cost_price: parseInt(String(newCostPrice)),
+        stock: newUnlimited ? 0 : parseInt(String(newStock || 0)),
+        daily_stock: newUnlimited ? 0 : parseInt(String(newStock || 0)),
         is_unlimited: newUnlimited,
       });
 
