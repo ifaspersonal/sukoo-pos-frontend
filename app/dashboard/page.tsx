@@ -11,7 +11,10 @@ type Period = "daily" | "weekly" | "monthly";
 const formatWIB = (dateString: string) => {
   if (!dateString) return "-";
 
-  return new Date(dateString).toLocaleString("id-ID", {
+  // Paksa treat sebagai UTC
+  const utcDate = new Date(dateString + "Z");
+
+  return utcDate.toLocaleString("id-ID", {
     timeZone: "Asia/Jakarta",
     day: "2-digit",
     month: "2-digit",
@@ -295,7 +298,9 @@ function HourlyChart({ data }: any) {
               className="w-full bg-black rounded-t"
               style={{ height: `${height}%` }}
             />
-            <div className="text-xs mt-1">{d.hour}</div>
+            <div className="text-xs mt-1">
+              {String(d.hour).padStart(2, "0")}:00
+            </div>
           </div>
         );
       })}
