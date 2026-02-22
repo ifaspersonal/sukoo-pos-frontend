@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 type Period = "daily" | "weekly" | "monthly";
 
 /* ==============================
-   WIB FORMATTER (SAFE)
+   WIB FORMATTER
 ============================== */
 const formatWIB = (dateString: string) => {
   if (!dateString) return "-";
@@ -19,6 +19,13 @@ const formatWIB = (dateString: string) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+/* ==============================
+   FIX HOURLY UTC → WIB
+============================== */
+const toWIBHour = (utcHour: number) => {
+  return (utcHour + 7) % 24;
 };
 
 export default function DashboardPage() {
@@ -68,9 +75,7 @@ export default function DashboardPage() {
 
       {/* ================= HEADER ================= */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-3xl font-bold">
-          📊 Sales Dashboard
-        </h1>
+        <h1 className="text-3xl font-bold">📊 Sales Dashboard</h1>
 
         <div className="flex gap-2">
           {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
@@ -137,31 +142,10 @@ export default function DashboardPage() {
         <Card title="QRIS" value={`Rp ${data.qris_total.toLocaleString()}`} />
       </div>
 
-      {/* ================= TOP PRODUCTS ================= */}
-      <div className="bg-white p-4 rounded-2xl shadow">
-        <h2 className="font-bold mb-3">🔥 Top Products</h2>
-
-        {data.top_products.length === 0 && (
-          <div className="text-gray-500 text-sm">
-            No sales in this period
-          </div>
-        )}
-
-        {data.top_products.map((p: any, i: number) => (
-          <div
-            key={i}
-            className="flex justify-between py-2 border-b last:border-none"
-          >
-            <span>{p.name}</span>
-            <span className="font-medium">{p.qty} pcs</span>
-          </div>
-        ))}
-      </div>
-
-      {/* ================= HOURLY SALES ================= */}
+      {/* ================= HOURLY SALES + CHART ================= */}
       {period === "daily" && data.hourly_sales && (
         <div className="bg-white p-4 rounded-2xl shadow">
-          <h2 className="font-bold mb-3">⏰ Hourly Sales</h2>
+          <h2 className="font-bold mb-3">⏰ Hourly Sales (WIB)</h2>
 
           {data.hourly_sales.length === 0 && (
             <div className="text-gray-500 text-sm">
@@ -174,12 +158,19 @@ export default function DashboardPage() {
               key={i}
               className="flex justify-between py-2 border-b last:border-none"
             >
-              <span>{h.hour}:00</span>
+              <span>{toWIBHour(h.hour)}:00</span>
               <span className="font-medium">
                 Rp {h.total.toLocaleString()}
               </span>
             </div>
           ))}
+
+          <HourlyChart
+            data={data.hourly_sales.map((h: any) => ({
+              hour: toWIBHour(h.hour),
+              total: h.total,
+            }))}
+          />
         </div>
       )}
 
@@ -202,17 +193,24 @@ export default function DashboardPage() {
               setSelectedTx(res.data);
             }}
           >
-            <div className="flex items-center gap-2">
-              <span>#{tx.id}</span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span>#{tx.id}</span>
 
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  tx.type === "redeem"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                {tx.type?.toUpperCase()}
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${
+                    tx.type === "redeem"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  {tx.type?.toUpperCase()}
+                </span>
+              </div>
+
+              {/* WIB TIME IN LIST */}
+              <span className="text-xs text-gray-500">
+                {formatWIB(tx.created_at)}
               </span>
             </div>
 
@@ -274,6 +272,33 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ==============================
+   SIMPLE BAR CHART (NO LIBRARY)
+============================== */
+function HourlyChart({ data }: any) {
+  if (!data || data.length === 0) return null;
+
+  const max = Math.max(...data.map((d: any) => d.total));
+
+  return (
+    <div className="flex items-end gap-2 h-40 mt-6">
+      {data.map((d: any, i: number) => {
+        const height = max ? (d.total / max) * 100 : 0;
+
+        return (
+          <div key={i} className="flex flex-col items-center flex-1">
+            <div
+              className="w-full bg-black rounded-t"
+              style={{ height: `${height}%` }}
+            />
+            <div className="text-xs mt-1">{d.hour}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }
