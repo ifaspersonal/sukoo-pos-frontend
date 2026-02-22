@@ -47,6 +47,9 @@ export default function DashboardPage() {
   const [newStock, setNewStock] = useState<number | "">("");
   const [newUnlimited, setNewUnlimited] = useState(false);
   const [savingProduct, setSavingProduct] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   const fetchData = async (selected: Period) => {
     try {
@@ -64,6 +67,18 @@ export default function DashboardPage() {
       console.error("Dashboard error:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const res = await api.get("/products");
+      setProducts(res.data);
+    } catch (err) {
+      console.error("Product fetch error", err);
+    } finally {
+      setLoadingProducts(false);
     }
   };
 
@@ -106,6 +121,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData(period);
+    fetchProducts();
   }, [period]);
 
   if (loading) {
@@ -213,6 +229,49 @@ export default function DashboardPage() {
           >
             <span>{p.name}</span>
             <span className="font-medium">{p.qty} pcs</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ================= PRODUCT MANAGEMENT ================= */}
+      <div className="bg-white p-4 rounded-2xl shadow">
+        <h2 className="font-bold mb-3">🛠 Product Management</h2>
+
+        {loadingProducts && (
+          <div className="text-sm text-gray-500">Loading products...</div>
+        )}
+
+        {products.map((p: any) => (
+          <div
+            key={p.id}
+            className="flex justify-between items-center py-2 border-b last:border-none"
+          >
+            <div className="flex flex-col">
+              <span className="font-medium">{p.name}</span>
+              <span className="text-xs text-gray-500">
+                Rp {p.price.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditingProduct(p)}
+                className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!confirm("Yakin ingin hapus produk ini?")) return;
+                  await api.delete(`/products/${p.id}`);
+                  fetchProducts();
+                }}
+                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -415,6 +474,63 @@ export default function DashboardPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ================= EDIT PRODUCT MODAL ================= */}
+      {editingProduct && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md space-y-4">
+
+            <h2 className="text-xl font-bold">✏ Edit Product</h2>
+
+            <input
+              type="text"
+              className="w-full border rounded-lg p-2"
+              value={editingProduct.name}
+              onChange={(e) =>
+                setEditingProduct({ ...editingProduct, name: e.target.value })
+              }
+            />
+
+            <input
+              type="number"
+              className="w-full border rounded-lg p-2"
+              value={editingProduct.price}
+              onChange={(e) =>
+                setEditingProduct({ ...editingProduct, price: Number(e.target.value) })
+              }
+            />
+
+            <input
+              type="number"
+              className="w-full border rounded-lg p-2"
+              value={editingProduct.cost_price}
+              onChange={(e) =>
+                setEditingProduct({ ...editingProduct, cost_price: Number(e.target.value) })
+              }
+            />
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setEditingProduct(null)}
+                className="flex-1 border py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  await api.put(`/products/${editingProduct.id}`, editingProduct);
+                  setEditingProduct(null);
+                  fetchProducts();
+                }}
+                className="flex-1 bg-black text-white py-2 rounded-lg"
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
       )}
