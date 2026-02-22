@@ -39,6 +39,14 @@ export default function DashboardPage() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [selectedTx, setSelectedTx] = useState<any>(null);
+  // ================= ADD PRODUCT MODAL =================
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPrice, setNewPrice] = useState<number | "">("");
+  const [newCostPrice, setNewCostPrice] = useState<number | "">("");
+  const [newStock, setNewStock] = useState<number | "">("");
+  const [newUnlimited, setNewUnlimited] = useState(false);
+  const [savingProduct, setSavingProduct] = useState(false);
 
   const fetchData = async (selected: Period) => {
     try {
@@ -56,6 +64,42 @@ export default function DashboardPage() {
       console.error("Dashboard error:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ================= HANDLE ADD PRODUCT =================
+  const handleAddProduct = async () => {
+    if (!newName || newPrice === "" || newCostPrice === "") {
+      alert("Nama, harga jual dan harga modal wajib diisi");
+      return;
+    }
+
+    try {
+      setSavingProduct(true);
+
+      await api.post("/products/", {
+        name: newName,
+        price: Number(newPrice),
+        cost_price: Number(newCostPrice),
+        stock: newUnlimited ? 0 : Number(newStock || 0),
+        is_unlimited: newUnlimited,
+      });
+
+      alert("Produk berhasil ditambahkan");
+
+      setNewName("");
+      setNewPrice("");
+      setNewCostPrice("");
+      setNewStock("");
+      setNewUnlimited(false);
+
+      setShowAddProduct(false);
+
+      fetchData(period);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Gagal menambahkan produk");
+    } finally {
+      setSavingProduct(false);
     }
   };
 
@@ -80,7 +124,13 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h1 className="text-3xl font-bold">📊 Sales Dashboard</h1>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => setShowAddProduct(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition"
+          >
+            ➕ Add Product
+          </button>
           {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
             <button
               key={p}
@@ -296,6 +346,78 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ================= ADD PRODUCT MODAL ================= */}
+      {showAddProduct && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md space-y-4">
+
+            <h2 className="text-xl font-bold">➕ Add Product</h2>
+
+            <input
+              type="text"
+              placeholder="Nama Produk"
+              className="w-full border rounded-lg p-2"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+
+            <input
+              type="number"
+              placeholder="Harga Jual"
+              className="w-full border rounded-lg p-2"
+              value={newPrice}
+              onChange={(e) => setNewPrice(Number(e.target.value))}
+            />
+
+            <input
+              type="number"
+              placeholder="Harga Modal"
+              className="w-full border rounded-lg p-2"
+              value={newCostPrice}
+              onChange={(e) => setNewCostPrice(Number(e.target.value))}
+            />
+
+            {!newUnlimited && (
+              <input
+                type="number"
+                placeholder="Stock"
+                className="w-full border rounded-lg p-2"
+                value={newStock}
+                onChange={(e) => setNewStock(Number(e.target.value))}
+              />
+            )}
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={newUnlimited}
+                onChange={(e) => setNewUnlimited(e.target.checked)}
+              />
+              <span className="text-sm">Unlimited Stock</span>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowAddProduct(false)}
+                className="flex-1 border py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleAddProduct}
+                disabled={savingProduct}
+                className="flex-1 bg-black text-white py-2 rounded-lg disabled:opacity-50"
+              >
+                {savingProduct ? "Saving..." : "Save Product"}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
