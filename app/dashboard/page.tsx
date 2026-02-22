@@ -298,9 +298,9 @@ function HourlyChart({ data }: any) {
               className="w-full bg-black rounded-t"
               style={{ height: `${height}%` }}
             />
-            <div className="text-xs mt-1">
+            {/* <div className="text-xs mt-1">
               {String(d.hour).padStart(2, "0")}:00
-            </div>
+            </div> */}
           </div>
         );
       })}
