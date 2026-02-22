@@ -77,7 +77,7 @@ export default function DashboardPage() {
     try {
       setSavingProduct(true);
 
-      await api.post("/products/", {
+      await api.post("/products", {
         name: newName,
         price: Number(newPrice),
         cost_price: Number(newCostPrice),
