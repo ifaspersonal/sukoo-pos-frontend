@@ -52,6 +52,8 @@ export default function DashboardPage() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [newCategory, setNewCategory] = useState("drink");
   const [newPointValue, setNewPointValue] = useState<number | "">(1);
+  const [stockModalProduct, setStockModalProduct] = useState<any>(null);
+  const [newStockValue, setNewStockValue] = useState<number | "">("");
 
   const fetchData = async (selected: Period) => {
     try {
@@ -281,12 +283,9 @@ export default function DashboardPage() {
               </button>
 
               <button
-                onClick={async () => {
-                  const newStock = prompt("Masukkan stock baru:", String(p.stock));
-                  if (newStock === null) return;
-
-                  await api.put(`/products/${p.id}/stock?stock=${newStock}`);
-                  fetchProducts();
+                onClick={() => {
+                  setStockModalProduct(p);
+                  setNewStockValue(p.stock);
                 }}
                 className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded"
               >
@@ -616,6 +615,60 @@ export default function DashboardPage() {
                 Save
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= UPDATE STOCK MODAL ================= */}
+      {stockModalProduct && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl w-[90%] max-w-sm space-y-4">
+
+            <h2 className="text-lg font-bold">
+              📦 Update Stock
+            </h2>
+
+            <div className="text-sm text-gray-500">
+              {stockModalProduct.name}
+            </div>
+
+            <input
+              type="number"
+              className="w-full border rounded-lg p-2"
+              value={newStockValue}
+              onChange={(e) =>
+                setNewStockValue(
+                  e.target.value === "" ? "" : Number(e.target.value)
+                )
+              }
+              min={0}
+            />
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setStockModalProduct(null)}
+                className="flex-1 border py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (newStockValue === "") return;
+
+                  await api.put(
+                    `/products/${stockModalProduct.id}/stock?stock=${newStockValue}`
+                  );
+
+                  setStockModalProduct(null);
+                  fetchProducts();
+                }}
+                className="flex-1 bg-black text-white py-2 rounded-lg"
+              >
+                Save
+              </button>
+            </div>
+
           </div>
         </div>
       )}
