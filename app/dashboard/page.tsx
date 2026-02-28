@@ -244,6 +244,18 @@ export default function DashboardPage() {
       <div className="bg-white p-4 rounded-2xl shadow">
         <h2 className="font-bold mb-3">🛠 Product Management</h2>
 
+        <button
+          onClick={async () => {
+            if (!confirm("Reset semua stock ke daily stock?")) return;
+            await api.post("/products/reset-daily-stock");
+            fetchProducts();
+            alert("Daily stock berhasil direset");
+          }}
+          className="mb-3 bg-orange-500 text-white px-3 py-2 rounded text-sm hover:bg-orange-600 transition"
+        >
+          🔄 Reset Daily Stock
+        </button>
+
         {loadingProducts && (
           <div className="text-sm text-gray-500">Loading products...</div>
         )}
@@ -266,6 +278,19 @@ export default function DashboardPage() {
                 className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded"
               >
                 Edit
+              </button>
+
+              <button
+                onClick={async () => {
+                  const newStock = prompt("Masukkan stock baru:", String(p.stock));
+                  if (newStock === null) return;
+
+                  await api.put(`/products/${p.id}/stock?stock=${newStock}`);
+                  fetchProducts();
+                }}
+                className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded"
+              >
+                Stock
               </button>
 
               <button
