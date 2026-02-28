@@ -50,6 +50,8 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [newCategory, setNewCategory] = useState("drink");
+  const [newPointValue, setNewPointValue] = useState<number | "">(1);
 
   const fetchData = async (selected: Period) => {
     try {
@@ -99,6 +101,9 @@ export default function DashboardPage() {
         stock: newUnlimited ? 0 : parseInt(String(newStock || 0)),
         daily_stock: newUnlimited ? 0 : parseInt(String(newStock || 0)),
         is_unlimited: newUnlimited,
+        category: newCategory,
+        loyalty_point_value:
+          newPointValue === "" ? 0 : parseInt(String(newPointValue)),
       });
 
       alert("Produk berhasil ditambahkan");
@@ -108,6 +113,8 @@ export default function DashboardPage() {
       setNewCostPrice("");
       setNewStock("");
       setNewUnlimited(false);
+      setNewCategory("drink");
+        setNewPointValue(1);
 
       setShowAddProduct(false);
 
@@ -448,6 +455,29 @@ export default function DashboardPage() {
               />
             )}
 
+            {/* 🔥 CATEGORY */}
+            <select
+              className="w-full border rounded-lg p-2"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+            >
+              <option value="drink">Drink</option>
+              <option value="food">Food</option>
+              <option value="other">Other</option>
+            </select>
+
+            {/* 🔥 LOYALTY POINT */}
+            <input
+              type="number"
+              placeholder="Point per item (0 = no point)"
+              className="w-full border rounded-lg p-2"
+              value={newPointValue}
+              onChange={(e) =>
+                setNewPointValue(e.target.value === "" ? "" : Number(e.target.value))
+              }
+              min={0}
+            />
+
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -509,6 +539,36 @@ export default function DashboardPage() {
               value={editingProduct.cost_price}
               onChange={(e) =>
                 setEditingProduct({ ...editingProduct, cost_price: Number(e.target.value) })
+              }
+            />
+
+            {/* 🔥 CATEGORY */}
+            <select
+              className="w-full border rounded-lg p-2"
+              value={editingProduct.category || "drink"}
+              onChange={(e) =>
+                setEditingProduct({
+                  ...editingProduct,
+                  category: e.target.value,
+                })
+              }
+            >
+              <option value="drink">Drink</option>
+              <option value="food">Food</option>
+              <option value="other">Other</option>
+            </select>
+
+            {/* 🔥 LOYALTY POINT */}
+            <input
+              type="number"
+              className="w-full border rounded-lg p-2"
+              value={editingProduct.loyalty_point_value ?? 1}
+              min={0}
+              onChange={(e) =>
+                setEditingProduct({
+                  ...editingProduct,
+                  loyalty_point_value: Number(e.target.value),
+                })
               }
             />
 
