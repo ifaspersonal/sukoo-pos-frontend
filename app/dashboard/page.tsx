@@ -143,6 +143,13 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // ================= LOGOUT =================
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    window.location.href = "/login";
+  };
+
   useEffect(() => {
     fetchData(period);
     fetchProducts();
@@ -166,6 +173,12 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold">📊 Sales Dashboard</h1>
 
         <div className="flex gap-2 items-center">
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition"
+          >
+            Logout
+          </button>
           <button
             onClick={() => setShowAddProduct(true)}
             className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition"

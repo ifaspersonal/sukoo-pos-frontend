@@ -19,15 +19,29 @@ export default function POSPage() {
       return;
     }
 
-    // Optional: kalau suatu saat ada role lain
-    if (role !== "owner" && role !== "cashier") {
+    if (role !== "owner" && role !== "kasir") {
       window.location.href = "/login";
     }
   }, []);
 
+  // ================= LOGOUT =================
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    window.location.href = "/login";
+  };
+
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-stone-100 select-none">
+    <div className="relative h-screen flex flex-col md:flex-row bg-stone-100 select-none">
       
+      {/* 🔥 LOGOUT BUTTON */}
+      <button
+        onClick={handleLogout}
+        className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition z-50"
+      >
+        Logout
+      </button>
+
       {/* ⚠ Warning jika layar terlalu kecil */}
       {mode === "mobile" && (
         <div className="bg-yellow-200 text-yellow-900 text-center p-2 text-sm">
