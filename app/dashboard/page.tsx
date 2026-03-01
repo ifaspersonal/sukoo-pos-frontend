@@ -128,6 +128,21 @@ export default function DashboardPage() {
     }
   };
 
+  // ================= ROLE GUARD =================
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    if (role !== "owner") {
+      window.location.href = "/pos";
+    }
+  }, []);
+
   useEffect(() => {
     fetchData(period);
     fetchProducts();

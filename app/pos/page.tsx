@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import ProductGrid from "../components/ProductGrid";
 import Cart from "../components/Cart";
 import PaymentBar from "../components/PaymentBar";
@@ -7,6 +8,22 @@ import { useDeviceMode } from "../hooks/useDeviceMode";
 
 export default function POSPage() {
   const mode = useDeviceMode();
+
+  // ================= ROLE + AUTH GUARD =================
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+
+    if (!token || !role) {
+      window.location.href = "/login";
+      return;
+    }
+
+    // Optional: kalau suatu saat ada role lain
+    if (role !== "owner" && role !== "cashier") {
+      window.location.href = "/login";
+    }
+  }, []);
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-stone-100 select-none">

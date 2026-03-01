@@ -40,10 +40,20 @@ export default function LoginPage() {
         return;
       }
 
+      // ✅ Simpan token
       localStorage.setItem("token", res.data.access_token);
 
-      // 🔥 pakai hard redirect supaya lebih stabil di HP
-      window.location.href = "/pos";
+      // ✅ Simpan role
+      if (res.data.role) {
+        localStorage.setItem("role", res.data.role);
+      }
+
+      // ✅ Redirect berdasarkan role
+      if (res.data.role === "owner") {
+        window.location.href = "/dashboard";
+      } else {
+        window.location.href = "/pos";
+      }
 
     } catch (err: any) {
       console.error("LOGIN ERROR FULL:", err);
