@@ -11,6 +11,11 @@ export default function PaymentBar() {
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
 
+  // 🔥 CONFIRM + SUCCESS
+  const [confirmMethod, setConfirmMethod] = useState<"cash" | "qris" | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [success, setSuccess] = useState(false);
+
   // Loyalty
   const [enableLoyalty, setEnableLoyalty] = useState(false);
   const [customerPhone, setCustomerPhone] = useState("");
@@ -222,9 +227,13 @@ export default function PaymentBar() {
         {/* PAYMENT BUTTONS */}
         <button
           type="button"
-          className="w-full bg-green-600 text-white py-3 rounded-lg disabled:opacity-50"
-          onClick={() => pay("cash")}
-          disabled={printing}
+          disabled={printing || items.length === 0}
+          className={`w-full py-3 rounded-lg text-white transition
+            ${items.length === 0
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-green-600"
+            }`}
+          onClick={() => setConfirmMethod("cash")}
         >
           {printing ? "Printing..." : "CASH"}
         </button>
@@ -232,7 +241,7 @@ export default function PaymentBar() {
         <button
           type="button"
           className="w-full bg-blue-600 text-white py-3 rounded-lg disabled:opacity-50"
-          onClick={() => pay("qris")}
+          onClick={() => setConfirmMethod("qris")}
           disabled={printing}
         >
           {printing ? "Printing..." : "QRIS"}
@@ -246,6 +255,74 @@ export default function PaymentBar() {
           PRINT ULANG
         </button>
       </div>
+
+
+      {/* 🔥 CONFIRM PAYMENT MODAL */}
+      {confirmMethod && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md space-y-4">
+
+            <h2 className="text-lg font-bold text-center">
+              Konfirmasi Pembayaran
+            </h2>
+
+            {/* ITEM LIST */}
+            <div className="max-h-40 overflow-auto border rounded-lg p-2 text-sm space-y-1">
+              {items.map((item, i) => (
+                <div key={i} className="flex justify-between">
+                  <span>{item.name} x{item.qty}</span>
+                  <span>
+                    Rp {(item.price * item.qty).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* TOTAL */}
+            <div className="text-center text-xl font-bold">
+              Rp {cartTotal.toLocaleString()}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                disabled={processing}
+                onClick={() => setConfirmMethod(null)}
+                className="flex-1 border py-2 rounded-lg"
+              >
+                Batal
+              </button>
+
+              <button
+                disabled={processing}
+                onClick={async () => {
+                  setProcessing(true);
+                  await pay(confirmMethod);
+                  setConfirmMethod(null);
+                  setProcessing(false);
+                  setSuccess(true);
+                  setTimeout(() => setSuccess(false), 1500);
+                }}
+                className="flex-1 bg-black text-white py-2 rounded-lg"
+              >
+                {processing ? "Processing..." : "Konfirmasi"}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 🔥 SUCCESS OVERLAY */}
+      {success && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white px-8 py-6 rounded-2xl text-center animate-bounce">
+            <div className="text-4xl mb-2">✅</div>
+            <div className="font-bold text-lg">
+              Transaksi Berhasil
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewReceipt && (
         <ReceiptPreview
