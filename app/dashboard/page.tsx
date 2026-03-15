@@ -249,6 +249,45 @@ export default function DashboardPage() {
         <Card title="QRIS" value={`Rp ${data.qris_total.toLocaleString()}`} />
       </div>
 
+      {/* ================= SALES TREND ================= */}
+      {data.trend_sales && (
+        <div className="bg-white p-4 rounded-2xl shadow">
+
+          <h2 className="font-bold mb-3">
+            📈 Sales Trend
+          </h2>
+
+          {data.trend_sales.length === 0 && (
+            <div className="text-gray-500 text-sm">
+              No sales data
+            </div>
+          )}
+
+          <SalesLineChart
+            data={data.trend_sales}
+            type="revenue"
+          />
+
+        </div>
+      )}
+
+      {/* ================= PROFIT TREND ================= */}
+      {data.trend_sales && (
+        <div className="bg-white p-4 rounded-2xl shadow">
+
+          <h2 className="font-bold mb-3">
+            💰 Profit Trend
+          </h2>
+
+          <SalesLineChart
+            data={data.trend_sales}
+            type="profit"
+            color="#2563eb"
+          />
+
+        </div>
+      )}
+
       {/* ================= PRODUCT SUMMARY ================= */}
       <div className="bg-white p-4 rounded-2xl shadow">
         <h2 className="font-bold mb-3">📦 Product Sales Summary</h2>
@@ -738,4 +777,107 @@ function Card({ title, value }: any) {
       <div className="text-xl md:text-2xl font-bold">{value}</div>
     </div>
   );
+}
+
+function SalesLineChart({
+  data,
+  type,
+  color = "#16a34a"
+}: any) {
+
+  const [tooltip, setTooltip] = useState<any>(null)
+
+  if (!data || data.length === 0) return null
+
+  const width = 600
+  const height = 200
+  const padding = 40
+
+  const values = data.map((d: any) => d[type])
+  const max = Math.max(...values)
+
+  const stepX = (width - padding * 2) / (data.length - 1)
+
+  const points = data.map((d: any, i: number) => {
+
+    const x = padding + i * stepX
+
+    const y =
+      height -
+      padding -
+      (d[type] / max) * (height - padding * 2)
+
+    return { x, y, ...d }
+
+  })
+
+  const path = points
+    .map((p: any, i: number) =>
+      i === 0
+        ? `M ${p.x} ${p.y}`
+        : `L ${p.x} ${p.y}`
+    )
+    .join(" ")
+
+  return (
+    <div className="relative">
+
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-52">
+
+        <path
+          d={path}
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+        />
+
+        {points.map((p: any, i: number) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="5"
+            fill={color}
+            onMouseEnter={() => setTooltip(p)}
+            onMouseLeave={() => setTooltip(null)}
+          />
+        ))}
+
+      </svg>
+
+      {tooltip && (
+        <div
+          className="absolute bg-black text-white text-xs px-2 py-1 rounded"
+          style={{
+            left: tooltip.x - 40,
+            top: tooltip.y - 40
+          }}
+        >
+
+          {new Date(tooltip.date).toLocaleDateString("id-ID")}
+
+          <br/>
+
+          Rp {tooltip[type].toLocaleString()}
+
+        </div>
+      )}
+
+      <div className="flex justify-between text-xs mt-2">
+
+        {data.map((d: any, i: number) => {
+
+          const day = new Date(d.date).toLocaleDateString(
+            "id-ID",
+            { day: "2-digit", month: "2-digit" }
+          )
+
+          return <span key={i}>{day}</span>
+
+        })}
+
+      </div>
+
+    </div>
+  )
 }
