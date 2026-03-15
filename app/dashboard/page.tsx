@@ -832,7 +832,10 @@ function RevenueProfitChart({ data }: any) {
     ...data.map((d: any) => Math.max(d.revenue, d.profit))
   )
 
-  const stepX = (width - padding * 2) / (data.length - 1)
+  const stepX =
+    data.length > 1
+      ? (width - padding * 2) / (data.length - 1)
+      : 0
 
   const revenuePoints = data.map((d: any, i: number) => {
 
@@ -946,6 +949,29 @@ function RevenueProfitChart({ data }: any) {
           />
         ))}
 
+        {/* X Axis Labels */}
+        {revenuePoints.map((p: any, i: number) => {
+
+          const day = new Date(p.date).toLocaleDateString(
+            "id-ID",
+            { day: "2-digit", month: "2-digit" }
+          )
+
+          return (
+            <text
+              key={"label"+i}
+              x={p.x}
+              y={height - 5}
+              textAnchor="middle"
+              fontSize="10"
+              fill="#666"
+            >
+              {day}
+            </text>
+          )
+
+        })}
+
       </svg>
 
       {tooltip && (
@@ -970,33 +996,7 @@ function RevenueProfitChart({ data }: any) {
         </div>
       )}
 
-      <div
-        className="relative text-xs mt-2"
-        style={{ width: "100%", height: 20 }}
-      >
 
-        {revenuePoints.map((p: any, i: number) => {
-
-          const day = new Date(p.date).toLocaleDateString(
-            "id-ID",
-            { day: "2-digit", month: "2-digit" }
-          )
-
-          return (
-            <span
-              key={i}
-              style={{
-                position: "absolute",
-                left: `calc(${(p.x / width) * 100}% - 15px)`
-              }}
-            >
-              {day}
-            </span>
-          )
-
-        })}
-
-      </div>
 
     </div>
   )
