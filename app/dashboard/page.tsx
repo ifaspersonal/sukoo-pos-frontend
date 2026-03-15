@@ -249,12 +249,12 @@ export default function DashboardPage() {
         <Card title="QRIS" value={`Rp ${data.qris_total.toLocaleString()}`} />
       </div>
 
-      {/* ================= SALES TREND ================= */}
+      {/* ================= REVENUE VS PROFIT ================= */}
       {data.trend_sales && (
         <div className="bg-white p-4 rounded-2xl shadow">
 
           <h2 className="font-bold mb-3">
-            📈 Sales Trend
+            📈 Revenue vs Profit
           </h2>
 
           {data.trend_sales.length === 0 && (
@@ -263,27 +263,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <SalesLineChart
-            data={data.trend_sales}
-            type="revenue"
-          />
-
-        </div>
-      )}
-
-      {/* ================= PROFIT TREND ================= */}
-      {data.trend_sales && (
-        <div className="bg-white p-4 rounded-2xl shadow">
-
-          <h2 className="font-bold mb-3">
-            💰 Profit Trend
-          </h2>
-
-          <SalesLineChart
-            data={data.trend_sales}
-            type="profit"
-            color="#2563eb"
-          />
+          <RevenueProfitChart data={data.trend_sales} />
 
         </div>
       )}
@@ -779,11 +759,7 @@ function Card({ title, value }: any) {
   );
 }
 
-function SalesLineChart({
-  data,
-  type,
-  color = "#16a34a"
-}: any) {
+function RevenueProfitChart({ data }: any) {
 
   const [tooltip, setTooltip] = useState<any>(null)
 
@@ -793,52 +769,120 @@ function SalesLineChart({
   const height = 200
   const padding = 40
 
-  const values = data.map((d: any) => d[type])
-  const max = Math.max(...values)
+  const max = Math.max(
+    ...data.map((d: any) => Math.max(d.revenue, d.profit))
+  )
 
   const stepX = (width - padding * 2) / (data.length - 1)
 
-  const points = data.map((d: any, i: number) => {
+  const revenuePoints = data.map((d: any, i: number) => {
 
     const x = padding + i * stepX
 
     const y =
       height -
       padding -
-      (d[type] / max) * (height - padding * 2)
+      (d.revenue / max) * (height - padding * 2)
 
     return { x, y, ...d }
 
   })
 
-  const path = points
+  const profitPoints = data.map((d: any, i: number) => {
+
+    const x = padding + i * stepX
+
+    const y =
+      height -
+      padding -
+      (d.profit / max) * (height - padding * 2)
+
+    return { x, y, ...d }
+
+  })
+
+  const revenuePath = revenuePoints
     .map((p: any, i: number) =>
-      i === 0
-        ? `M ${p.x} ${p.y}`
-        : `L ${p.x} ${p.y}`
+      i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`
+    )
+    .join(" ")
+
+  const profitPath = profitPoints
+    .map((p: any, i: number) =>
+      i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`
     )
     .join(" ")
 
   return (
     <div className="relative">
 
+      {/* legend */}
+      <div className="flex gap-4 text-xs mb-2">
+
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-green-600 rounded"/>
+          Revenue
+        </div>
+
+        <div className="flex items-center gap-1">
+          <div className="w-3 h-3 bg-blue-600 rounded"/>
+          Profit
+        </div>
+
+      </div>
+
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-52">
 
+        {/* revenue line */}
         <path
-          d={path}
+          d={revenuePath}
           fill="none"
-          stroke={color}
+          stroke="#16a34a"
           strokeWidth="3"
         />
 
-        {points.map((p: any, i: number) => (
+        {/* profit line */}
+        <path
+          d={profitPath}
+          fill="none"
+          stroke="#2563eb"
+          strokeWidth="3"
+        />
+
+        {/* revenue points */}
+        {revenuePoints.map((p: any, i: number) => (
           <circle
-            key={i}
+            key={"r"+i}
             cx={p.x}
             cy={p.y}
             r="5"
-            fill={color}
-            onMouseEnter={() => setTooltip(p)}
+            fill="#16a34a"
+            onMouseEnter={() =>
+              setTooltip({
+                ...p,
+                type: "Revenue",
+                value: p.revenue
+              })
+            }
+            onMouseLeave={() => setTooltip(null)}
+          />
+        ))}
+
+        {/* profit points */}
+        {profitPoints.map((p: any, i: number) => (
+          <circle
+            key={"p"+i}
+            cx={p.x}
+            cy={p.y}
+            r="5"
+            fill="#2563eb"
+            onMouseEnter={() =>
+              setTooltip({
+                ...p,
+                type: "Profit",
+                value: p.profit
+              })
+            }
             onMouseLeave={() => setTooltip(null)}
           />
         ))}
@@ -858,7 +902,11 @@ function SalesLineChart({
 
           <br/>
 
-          Rp {tooltip[type].toLocaleString()}
+          {tooltip.type}
+
+          <br/>
+
+          Rp {tooltip.value.toLocaleString()}
 
         </div>
       )}
