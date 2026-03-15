@@ -970,16 +970,29 @@ function RevenueProfitChart({ data }: any) {
         </div>
       )}
 
-      <div className="flex justify-between text-xs mt-2">
+      <div
+        className="relative text-xs mt-2"
+        style={{ width: "100%", height: 20 }}
+      >
 
-        {data.map((d: any, i: number) => {
+        {revenuePoints.map((p: any, i: number) => {
 
-          const day = new Date(d.date).toLocaleDateString(
+          const day = new Date(p.date).toLocaleDateString(
             "id-ID",
             { day: "2-digit", month: "2-digit" }
           )
 
-          return <span key={i}>{day}</span>
+          return (
+            <span
+              key={i}
+              style={{
+                position: "absolute",
+                left: `calc(${(p.x / width) * 100}% - 15px)`
+              }}
+            >
+              {day}
+            </span>
+          )
 
         })}
 
