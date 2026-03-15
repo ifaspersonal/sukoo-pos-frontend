@@ -189,10 +189,15 @@ export default function PaymentBar() {
           {enableLoyalty && (
             <>
               <input
-                type="text"
+                type="tel"
+                inputMode="numeric"
+                maxLength={14}
                 placeholder="Nomor HP"
                 value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setCustomerPhone(value.slice(0, 14));
+                }}
                 className="w-full border rounded-lg p-2 text-black"
               />
 
