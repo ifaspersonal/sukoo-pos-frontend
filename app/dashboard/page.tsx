@@ -55,6 +55,11 @@ export default function DashboardPage() {
   const [stockModalProduct, setStockModalProduct] = useState<any>(null);
   const [newStockValue, setNewStockValue] = useState<number | "">("");
 
+  // ================= PAGINATION =================
+  const [productPage, setProductPage] = useState(1);
+  const [txPage, setTxPage] = useState(1);
+  const itemsPerPage = 5;
+
   const fetchData = async (selected: Period) => {
     try {
       setLoading(true);
@@ -309,7 +314,9 @@ export default function DashboardPage() {
           <div className="text-sm text-gray-500">Loading products...</div>
         )}
 
-        {products.map((p: any) => (
+        {products
+          .slice((productPage - 1) * itemsPerPage, productPage * itemsPerPage)
+          .map((p: any) => (
           <div
             key={p.id}
             className="flex justify-between items-center py-2 border-b last:border-none"
@@ -352,6 +359,31 @@ export default function DashboardPage() {
             </div>
           </div>
         ))}
+
+        {/* PRODUCT PAGINATION */}
+        <div className="flex justify-center gap-2 mt-4 text-sm">
+
+          <button
+            disabled={productPage === 1}
+            onClick={() => setProductPage(productPage - 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          <span className="px-2">
+            Page {productPage}
+          </span>
+
+          <button
+            disabled={productPage * itemsPerPage >= products.length}
+            onClick={() => setProductPage(productPage + 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+
+        </div>
       </div>
 
       {/* ================= HOURLY SALES + CHART ================= */}
@@ -396,7 +428,9 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {data.transactions?.map((tx: any) => (
+        {data.transactions
+          ?.slice((txPage - 1) * itemsPerPage, txPage * itemsPerPage)
+          .map((tx: any) => (
           <div
             key={tx.id}
             className="flex justify-between items-center py-2 border-b last:border-none cursor-pointer hover:bg-stone-50 transition"
@@ -431,6 +465,31 @@ export default function DashboardPage() {
             </span>
           </div>
         ))}
+
+        {/* TRANSACTION PAGINATION */}
+        <div className="flex justify-center gap-2 mt-4 text-sm">
+
+          <button
+            disabled={txPage === 1}
+            onClick={() => setTxPage(txPage - 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Prev
+          </button>
+
+          <span className="px-2">
+            Page {txPage}
+          </span>
+
+          <button
+            disabled={txPage * itemsPerPage >= data.transactions.length}
+            onClick={() => setTxPage(txPage + 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+
+        </div>        
       </div>
 
       {/* ================= MODAL DETAIL ================= */}
