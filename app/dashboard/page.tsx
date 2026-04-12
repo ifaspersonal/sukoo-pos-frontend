@@ -35,7 +35,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
   const [period, setPeriod] = useState<Period>("daily");
   const [loading, setLoading] = useState(true);
-
+  const [branchId, setBranchId] = useState<number | "">("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [selectedTx, setSelectedTx] = useState<any>(null);
@@ -65,6 +65,18 @@ export default function DashboardPage() {
       setLoading(true);
 
       let url = `/reports?period=${selected}`;
+
+      if (branchId) {
+        url += `&branch_id=${branchId}`;
+      }
+
+      if (start && end) {
+        url = `/reports?start=${start}&end=${end}`;
+
+        if (branchId) {
+          url += `&branch_id=${branchId}`;
+        }
+      }
 
       if (start && end) {
         url = `/reports?start=${start}&end=${end}`;
@@ -158,7 +170,12 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData(period);
     fetchProducts();
-  }, [period]);
+  }, [period, branchId]);
+  
+  useEffect(() => {
+    setTxPage(1);
+    setProductPage(1);
+  }, [branchId, period, start, end]);
 
   if (loading) {
     return (
@@ -209,6 +226,18 @@ export default function DashboardPage() {
 
       {/* ================= DATE PICKER ================= */}
       <div className="flex flex-wrap gap-2 items-center">
+        <select
+          value={branchId}
+          onChange={(e) =>
+            setBranchId(e.target.value === "" ? "" : Number(e.target.value))
+          }
+          className="px-3 py-2 rounded-lg border text-sm"
+        >
+          <option value="">Semua Cabang</option>
+          <option value={1}>Cipinang</option>
+          <option value={2}>Cawang</option>
+          <option value={3}>BKT</option>
+        </select>
         <input
           type="date"
           value={start}
