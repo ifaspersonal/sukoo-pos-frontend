@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [newCategory, setNewCategory] = useState("drink");
   const [newPointValue, setNewPointValue] = useState<number | "">(1);
+  const [newBranchId, setNewBranchId] = useState<number | "">("");
   const [stockModalProduct, setStockModalProduct] = useState<any>(null);
   const [newStockValue, setNewStockValue] = useState<number | "">("");
 
@@ -88,8 +89,16 @@ export default function DashboardPage() {
   const fetchProducts = async () => {
     try {
       setLoadingProducts(true);
-      const res = await api.get("/products");
+
+      let url = "/products";
+
+      if (branchId) {
+        url += `?branch_id=${branchId}`;
+      }
+
+      const res = await api.get(url);
       setProducts(res.data);
+
     } catch (err) {
       console.error("Product fetch error", err);
     } finally {
@@ -117,6 +126,7 @@ export default function DashboardPage() {
         category: newCategory,
         loyalty_point_value:
           newPointValue === "" ? 0 : parseInt(String(newPointValue)),
+        branch_id: newBranchId || branchId || 1, // 🔥 INI DIA
       });
 
       alert("Produk berhasil ditambahkan");
@@ -127,7 +137,8 @@ export default function DashboardPage() {
       setNewStock("");
       setNewUnlimited(false);
       setNewCategory("drink");
-        setNewPointValue(1);
+      setNewPointValue(1);
+      setNewBranchId("");
 
       setShowAddProduct(false);
 
@@ -163,17 +174,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData(period);
+  }, [period, branchId, start, end]);
+
+  useEffect(() => {
     fetchProducts();
-  }, [period, branchId]);
+  }, [branchId]);
   
   useEffect(() => {
     setTxPage(1);
     setProductPage(1);
   }, [branchId, period, start, end]);
 
-  useEffect(() => {
-    fetchData(period);
-  }, [period, branchId, start, end]);
 
   if (loading) {
     return (
@@ -200,7 +211,13 @@ export default function DashboardPage() {
             Logout
           </button>
           <button
-            onClick={() => setShowAddProduct(true)}
+            onClick={() => {
+              if (!branchId) {
+                alert("Pilih cabang dulu");
+                return;
+              }
+              setShowAddProduct(true);
+            }}
             className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition"
           >
             ➕ Add Product
@@ -328,7 +345,13 @@ export default function DashboardPage() {
         <button
           onClick={async () => {
             if (!confirm("Reset semua stock ke daily stock?")) return;
-            await api.post("/products/reset-daily-stock");
+            let url = "/products/reset-daily-stock";
+
+            if (branchId) {
+              url += `?branch_id=${branchId}`;
+            }
+
+            await api.post(url);
             fetchProducts();
             alert("Daily stock berhasil direset");
           }}
@@ -577,6 +600,19 @@ export default function DashboardPage() {
           <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md space-y-4">
 
             <h2 className="text-xl font-bold">➕ Add Product</h2>
+
+            <select
+              className="w-full border rounded-lg p-2"
+              value={newBranchId}
+              onChange={(e) =>
+                setNewBranchId(e.target.value === "" ? "" : Number(e.target.value))
+              }
+            >
+              <option value="">Pilih Cabang</option>
+              <option value={1}>Cipinang</option>
+              <option value={2}>Cawang</option>
+              <option value={3}>BKT</option>
+            </select>
 
             <input
               type="text"
