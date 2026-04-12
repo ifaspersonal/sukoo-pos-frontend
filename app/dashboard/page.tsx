@@ -66,20 +66,14 @@ export default function DashboardPage() {
 
       let url = `/reports?period=${selected}`;
 
+      // 🔥 override date kalau ada
+      if (start && end) {
+        url = `/reports?start=${start}&end=${end}`;
+      }
+
+      // 🔥 inject branch (SELALU terakhir)
       if (branchId) {
         url += `&branch_id=${branchId}`;
-      }
-
-      if (start && end) {
-        url = `/reports?start=${start}&end=${end}`;
-
-        if (branchId) {
-          url += `&branch_id=${branchId}`;
-        }
-      }
-
-      if (start && end) {
-        url = `/reports?start=${start}&end=${end}`;
       }
 
       const res = await api.get(url);
@@ -176,6 +170,10 @@ export default function DashboardPage() {
     setTxPage(1);
     setProductPage(1);
   }, [branchId, period, start, end]);
+
+  useEffect(() => {
+    fetchData(period);
+  }, [period, branchId, start, end]);
 
   if (loading) {
     return (
