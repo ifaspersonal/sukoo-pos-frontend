@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useCart } from "../context/CartContext";
 
-export default function ProductGrid() {
+export default function ProductGrid({
+  search = "",
+}: {
+  search?: string;
+}) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { addItem } = useCart();
@@ -24,10 +28,22 @@ export default function ProductGrid() {
     fetchProducts();
   }, []);
 
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-black">
         Loading products...
+      </div>
+    );
+  }
+
+  if (filteredProducts.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-40 text-gray-500">
+        Produk tidak ditemukan
       </div>
     );
   }
@@ -40,7 +56,7 @@ export default function ProductGrid() {
       xl:grid-cols-4 
       gap-4
     ">
-      {products.map((p) => {
+      {filteredProducts.map((p) => {
         const outOfStock = !p.is_unlimited && p.stock <= 0;
 
         return (

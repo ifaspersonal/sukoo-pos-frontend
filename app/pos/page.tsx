@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import ProductGrid from "../components/ProductGrid";
 import Cart from "../components/Cart";
 import PaymentBar from "../components/PaymentBar";
@@ -8,6 +8,7 @@ import { useDeviceMode } from "../hooks/useDeviceMode";
 
 export default function POSPage() {
   const mode = useDeviceMode();
+  const [search, setSearch] = useState("");
 
   // ================= ROLE + AUTH GUARD =================
   useEffect(() => {
@@ -51,7 +52,19 @@ export default function POSPage() {
 
       {/* 🛒 PRODUCT AREA */}
       <div className="flex-1 p-4 overflow-auto">
-        <ProductGrid />
+
+        {/* 🔍 SEARCH */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="🔍 Cari produk..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-white border rounded-xl px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-black"
+          />
+        </div>
+
+        <ProductGrid search={search} />
       </div>
 
       {/* 🧾 CART AREA */}
