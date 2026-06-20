@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useCart } from "../context/CartContext";
 import { api } from "../lib/api";
 import ReceiptPreview from "./ReceiptPreview";
+import { ChevronDownIcon, PrinterIcon } from "./Icons";
 
 export default function PaymentBar() {
   const { items, clear } = useCart();
@@ -173,21 +174,27 @@ export default function PaymentBar() {
 
   return (
     <>
-      <div className="mt-auto space-y-3">
+      <div className="mt-4 space-y-3">
 
         {/* LOYALTY */}
-        <div className="bg-white p-3 rounded-xl shadow space-y-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-black">
+        <div className="rounded-[18px] border border-[#e2ddd2] bg-[#f7f4ed] p-3.5">
+          <label className="flex min-h-9 cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
+            <span className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={enableLoyalty}
               onChange={(e) => setEnableLoyalty(e.target.checked)}
+              className="size-4 accent-[#173f2d]"
             />
-            Gunakan Loyalty
+              Pelanggan & loyalty
+            </span>
+            <ChevronDownIcon
+              className={`size-4 transition ${enableLoyalty ? "rotate-180" : ""}`}
+            />
           </label>
 
           {enableLoyalty && (
-            <>
+            <div className="mt-3 space-y-2.5 border-t border-[#e2ddd2] pt-3">
               <input
                 type="tel"
                 inputMode="numeric"
@@ -198,12 +205,12 @@ export default function PaymentBar() {
                   const value = e.target.value.replace(/\D/g, "");
                   setCustomerPhone(value.slice(0, 14));
                 }}
-                className="w-full border rounded-lg p-2 text-black"
+                className="field min-h-11 px-3 text-sm"
               />
 
               {customerPoints !== null && (
-                <div className="text-sm font-medium text-green-600">
-                  Saldo Poin: {customerPoints}
+                <div className="rounded-xl bg-[#e4eee6] px-3 py-2 text-sm font-semibold text-[#27613f]">
+                  Saldo poin: {customerPoints}
                 </div>
               )}
 
@@ -212,9 +219,9 @@ export default function PaymentBar() {
                 placeholder="Nama (opsional)"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full border rounded-lg p-2 text-black"
+                className="field min-h-11 px-3 text-sm"
               />
-            </>
+            </div>
           )}
         </div>
 
@@ -222,59 +229,61 @@ export default function PaymentBar() {
         {redeemAvailable && (
           <button
             type="button"
-            className="w-full bg-purple-600 text-white py-3 rounded-lg"
+            className="min-h-12 w-full rounded-[14px] bg-[#6f4b7b] px-4 font-semibold text-white transition hover:bg-[#5b3c66]"
             onClick={() => pay("redeem", 10)}
           >
-            🎁 REDEEM 1 MINUMAN (10 POIN)
+            Tukar 1 minuman · 10 poin
           </button>
         )}
 
-        {/* PAYMENT BUTTONS */}
-        <button
-          type="button"
-          disabled={printing || items.length === 0}
-          className={`w-full py-3 rounded-lg text-white transition
-            ${items.length === 0
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-green-600"
-            }`}
-          onClick={() => setConfirmMethod("cash")}
-        >
-          {printing ? "Printing..." : "CASH"}
-        </button>
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            disabled={printing || items.length === 0}
+            className="min-h-12 rounded-[14px] bg-[#173f2d] px-4 font-semibold text-white transition hover:bg-[#0e2d1f] disabled:cursor-not-allowed disabled:bg-[#b9bdb9]"
+            onClick={() => setConfirmMethod("cash")}
+          >
+            {printing ? "Mencetak..." : "Tunai"}
+          </button>
+
+          <button
+            type="button"
+            className="min-h-12 rounded-[14px] bg-[#355e81] px-4 font-semibold text-white transition hover:bg-[#294c6b] disabled:cursor-not-allowed disabled:bg-[#b9bdb9]"
+            onClick={() => setConfirmMethod("qris")}
+            disabled={printing || items.length === 0}
+          >
+            {printing ? "Mencetak..." : "QRIS"}
+          </button>
+        </div>
 
         <button
           type="button"
-          className="w-full bg-blue-600 text-white py-3 rounded-lg disabled:opacity-50"
-          onClick={() => setConfirmMethod("qris")}
-          disabled={printing}
-        >
-          {printing ? "Printing..." : "QRIS"}
-        </button>
-
-        <button
-          type="button"
-          className="w-full bg-gray-600 text-white py-3 rounded-lg"
+          className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-[#dcd6ca] bg-white px-4 text-sm font-semibold text-[#5f655f] transition hover:bg-[#f4f1ea]"
           onClick={reprintLast}
         >
-          PRINT ULANG
+          <PrinterIcon className="size-4" />
+          Cetak transaksi terakhir
         </button>
       </div>
 
 
       {/* 🔥 CONFIRM PAYMENT MODAL */}
       {confirmMethod && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-2xl w-[95%] max-w-md space-y-4">
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#17241d]/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4">
+          <div className="safe-bottom w-full max-w-md space-y-4 rounded-t-[28px] bg-[#fffdf8] p-5 shadow-2xl sm:rounded-[28px] sm:p-6">
 
-            <h2 className="text-lg font-bold text-center">
+            <div className="mx-auto h-1.5 w-12 rounded-full bg-[#d9d3c7] sm:hidden" />
+            <h2 className="text-center text-xl font-semibold">
               Konfirmasi Pembayaran
             </h2>
+            <p className="text-center text-sm text-[#7a7f7b]">
+              Metode {confirmMethod === "cash" ? "tunai" : "QRIS"}
+            </p>
 
             {/* ITEM LIST */}
-            <div className="max-h-40 overflow-auto border rounded-lg p-2 text-sm space-y-1">
+            <div className="max-h-44 space-y-2 overflow-auto rounded-[16px] border border-[#e2ddd2] bg-[#f8f5ef] p-3 text-sm">
               {items.map((item, i) => (
-                <div key={i} className="flex justify-between">
+                <div key={i} className="flex justify-between gap-4">
                   <span>{item.name} x{item.qty}</span>
                   <span>
                     Rp {(item.price * item.qty).toLocaleString()}
@@ -284,15 +293,15 @@ export default function PaymentBar() {
             </div>
 
             {/* TOTAL */}
-            <div className="text-center text-xl font-bold">
-              Rp {cartTotal.toLocaleString()}
+            <div className="text-center text-3xl font-bold tracking-tight text-[#173f2d]">
+              Rp {cartTotal.toLocaleString("id-ID")}
             </div>
 
             <div className="flex gap-2 pt-2">
               <button
                 disabled={processing}
                 onClick={() => setConfirmMethod(null)}
-                className="flex-1 border py-2 rounded-lg"
+                className="min-h-12 flex-1 rounded-[14px] border border-[#dcd6ca] bg-white font-semibold"
               >
                 Batal
               </button>
@@ -307,9 +316,9 @@ export default function PaymentBar() {
                   setSuccess(true);
                   setTimeout(() => setSuccess(false), 1500);
                 }}
-                className="flex-1 bg-black text-white py-2 rounded-lg"
+                className="min-h-12 flex-1 rounded-[14px] bg-[#173f2d] font-semibold text-white disabled:opacity-60"
               >
-                {processing ? "Processing..." : "Konfirmasi"}
+                {processing ? "Memproses..." : "Bayar sekarang"}
               </button>
             </div>
 
@@ -319,10 +328,12 @@ export default function PaymentBar() {
 
       {/* 🔥 SUCCESS OVERLAY */}
       {success && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white px-8 py-6 rounded-2xl text-center animate-bounce">
-            <div className="text-4xl mb-2">✅</div>
-            <div className="font-bold text-lg">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#17241d]/45">
+          <div className="rounded-[24px] bg-[#fffdf8] px-9 py-7 text-center shadow-2xl">
+            <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-[#dfece1] text-2xl">
+              ✓
+            </div>
+            <div className="text-lg font-bold">
               Transaksi Berhasil
             </div>
           </div>

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { LogOutIcon } from "../components/Icons";
+import SukooLogo from "../components/SukooLogo";
 
 type Period = "daily" | "weekly" | "monthly";
 
@@ -188,8 +190,11 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-6 min-h-screen bg-stone-100 text-black">
-        Loading dashboard...
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f1ea] text-[#173f2d]">
+        <div className="text-center">
+          <div className="mx-auto mb-4 size-10 animate-pulse rounded-2xl bg-[#173f2d]" />
+          <p className="text-sm font-semibold">Menyiapkan dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -197,19 +202,46 @@ export default function DashboardPage() {
   if (!data) return null;
 
   return (
-    <div className="p-6 bg-stone-100 min-h-screen text-black space-y-6">
+    <main className="min-h-screen bg-[#f4f1ea] text-[#1f2922]">
+      <header className="sticky top-0 z-30 border-b border-[#ddd8cc] bg-[#fffdf8]/90 px-4 py-3 backdrop-blur-md sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-24 items-center rounded-xl bg-[#173f2d] px-2.5">
+              <SukooLogo light className="w-full" />
+            </div>
+            <div>
+              <div className="font-bold tracking-tight">Sukoo Coffee</div>
+              <div className="text-xs text-[#7a7f7b]">Owner workspace</div>
+            </div>
+          </div>
+          <button
+            aria-label="Keluar"
+            onClick={handleLogout}
+            className="flex min-h-10 items-center gap-2 rounded-full border border-[#ded8cc] bg-white px-3 text-sm font-semibold text-[#5e655f]"
+          >
+            <LogOutIcon className="size-4" />
+            <span className="hidden sm:inline">Keluar</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 sm:py-7">
 
       {/* ================= HEADER ================= */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h1 className="text-3xl font-bold">📊 Sales Dashboard</h1>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#92775e]">
+            Ringkasan bisnis
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            Dashboard penjualan
+          </h1>
+          <p className="mt-1 text-sm text-[#777c77]">
+            Pantau performa, produk, dan transaksi seluruh cabang.
+          </p>
+        </div>
 
-        <div className="flex gap-2 items-center">
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition"
-          >
-            Logout
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => {
               if (!branchId) {
@@ -218,35 +250,35 @@ export default function DashboardPage() {
               }
               setShowAddProduct(true);
             }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition"
+            className="min-h-11 rounded-full bg-[#173f2d] px-4 text-sm font-semibold text-white transition hover:bg-[#0e2d1f]"
           >
-            ➕ Add Product
+            + Tambah produk
           </button>
           {(["daily", "weekly", "monthly"] as Period[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition
+              className={`min-h-11 rounded-full px-4 text-sm font-semibold transition
                 ${
                   period === p
-                    ? "bg-black text-white"
-                    : "bg-white text-black border"
+                    ? "bg-[#263129] text-white"
+                    : "border border-[#ddd8cc] bg-white text-[#626862]"
                 }`}
             >
-              {p.toUpperCase()}
+              {p === "daily" ? "Harian" : p === "weekly" ? "Mingguan" : "Bulanan"}
             </button>
           ))}
         </div>
       </div>
 
       {/* ================= DATE PICKER ================= */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="app-card grid gap-3 rounded-[22px] p-4 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_auto]">
         <select
           value={branchId}
           onChange={(e) =>
             setBranchId(e.target.value === "" ? "" : Number(e.target.value))
           }
-          className="px-3 py-2 rounded-lg border text-sm"
+          className="field px-3 text-sm"
         >
           <option value="">Semua Cabang</option>
           <option value={1}>Cipinang</option>
@@ -257,53 +289,53 @@ export default function DashboardPage() {
           type="date"
           value={start}
           onChange={(e) => setStart(e.target.value)}
-          className="border p-2 rounded"
+          className="field px-3 text-sm"
         />
         <input
           type="date"
           value={end}
           onChange={(e) => setEnd(e.target.value)}
-          className="border p-2 rounded"
+          className="field px-3 text-sm"
         />
         <button
           onClick={() => fetchData(period)}
-          className="bg-black text-white px-4 py-2 rounded"
+          className="min-h-12 rounded-[14px] bg-[#173f2d] px-5 text-sm font-semibold text-white"
         >
           Apply
         </button>
       </div>
 
-      <div className="text-sm text-gray-600">
-        {data.start_date} → {data.end_date}
+      <div className="-mt-2 text-xs font-medium text-[#7c817c]">
+        Periode {data.start_date} sampai {data.end_date}
       </div>
 
       {/* ================= KPI ================= */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card title="Revenue" value={`Rp ${data.total_revenue.toLocaleString()}`} />
-        <Card title="Profit" value={`Rp ${data.profit.toLocaleString()}`} />
-        <Card title="Sale Tx" value={data.total_transactions} />
-        <Card title="Redeem Tx" value={data.redeem_transactions || 0} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card title="Pendapatan" value={`Rp ${data.total_revenue.toLocaleString("id-ID")}`} accent />
+        <Card title="Profit" value={`Rp ${data.profit.toLocaleString("id-ID")}`} />
+        <Card title="Transaksi" value={data.total_transactions} />
+        <Card title="Redeem" value={data.redeem_transactions || 0} />
       </div>
 
       {/* ================= LOYALTY KPI ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="Points Earned" value={data.total_points_earned || 0} />
-        <Card title="Points Redeemed" value={data.total_points_redeemed || 0} />
-        <Card title="Net Points" value={data.net_points || 0} />
+      <div className="grid grid-cols-3 gap-3">
+        <Card title="Poin masuk" value={data.total_points_earned || 0} compact />
+        <Card title="Poin ditukar" value={data.total_points_redeemed || 0} compact />
+        <Card title="Poin net" value={data.net_points || 0} compact />
       </div>
 
       {/* ================= PAYMENT BREAKDOWN ================= */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card title="Cash" value={`Rp ${data.cash_total.toLocaleString()}`} />
-        <Card title="QRIS" value={`Rp ${data.qris_total.toLocaleString()}`} />
+      <div className="grid grid-cols-2 gap-3">
+        <Card title="Pembayaran tunai" value={`Rp ${data.cash_total.toLocaleString("id-ID")}`} />
+        <Card title="Pembayaran QRIS" value={`Rp ${data.qris_total.toLocaleString("id-ID")}`} />
       </div>
 
       {/* ================= REVENUE VS PROFIT ================= */}
       {data.trend_sales && (
-        <div className="bg-white p-4 rounded-2xl shadow">
+        <div className="app-card overflow-hidden rounded-[22px] p-4 sm:p-5">
 
           <h2 className="font-bold mb-3">
-            📈 Revenue vs Profit
+            Pendapatan vs profit
           </h2>
 
           {data.trend_sales.length === 0 && (
@@ -318,8 +350,8 @@ export default function DashboardPage() {
       )}
 
       {/* ================= PRODUCT SUMMARY ================= */}
-      <div className="bg-white p-4 rounded-2xl shadow">
-        <h2 className="font-bold mb-3">📦 Product Sales Summary</h2>
+      <div className="app-card rounded-[22px] p-4 sm:p-5">
+        <h2 className="mb-3 font-bold">Produk terlaris</h2>
 
         {data.top_products?.length === 0 && (
           <div className="text-gray-500 text-sm">
@@ -330,7 +362,7 @@ export default function DashboardPage() {
         {data.top_products?.map((p: any, i: number) => (
           <div
             key={i}
-            className="flex justify-between py-2 border-b last:border-none"
+            className="flex justify-between border-b border-[#e8e3d9] py-3 last:border-none"
           >
             <span>{p.name}</span>
             <span className="font-medium">{p.qty} pcs</span>
@@ -339,8 +371,12 @@ export default function DashboardPage() {
       </div>
 
       {/* ================= PRODUCT MANAGEMENT ================= */}
-      <div className="bg-white p-4 rounded-2xl shadow">
-        <h2 className="font-bold mb-3">🛠 Product Management</h2>
+      <div className="app-card rounded-[22px] p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-bold">Manajemen produk</h2>
+          <p className="mt-1 text-xs text-[#7a7f7b]">Kelola harga, stok, dan status menu.</p>
+        </div>
 
         <button
           onClick={async () => {
@@ -355,10 +391,11 @@ export default function DashboardPage() {
             fetchProducts();
             alert("Daily stock berhasil direset");
           }}
-          className="mb-3 bg-orange-500 text-white px-3 py-2 rounded text-sm hover:bg-orange-600 transition"
+          className="min-h-10 rounded-full bg-[#a5693d] px-4 text-sm font-semibold text-white"
         >
-          🔄 Reset Daily Stock
+          Reset stok harian
         </button>
+        </div>
 
         {loadingProducts && (
           <div className="text-sm text-gray-500">Loading products...</div>
@@ -369,7 +406,7 @@ export default function DashboardPage() {
           .map((p: any) => (
           <div
             key={p.id}
-            className="flex justify-between items-center py-2 border-b last:border-none"
+            className="flex flex-col gap-3 border-b border-[#e8e3d9] py-3 last:border-none sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex flex-col">
               <span className="font-medium">{p.name}</span>
@@ -378,10 +415,10 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setEditingProduct(p)}
-                className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded"
+                className="min-h-9 rounded-full bg-[#e7eef2] px-3 text-xs font-semibold text-[#355e81]"
               >
                 Edit
               </button>
@@ -391,7 +428,7 @@ export default function DashboardPage() {
                   setStockModalProduct(p);
                   setNewStockValue(p.stock);
                 }}
-                className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded"
+                className="min-h-9 rounded-full bg-[#f3ead9] px-3 text-xs font-semibold text-[#8a642c]"
               >
                 Stock
               </button>
@@ -402,7 +439,7 @@ export default function DashboardPage() {
                   await api.delete(`/products/${p.id}`);
                   fetchProducts();
                 }}
-                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded"
+                className="min-h-9 rounded-full bg-[#f6e3df] px-3 text-xs font-semibold text-[#a24f42]"
               >
                 Delete
               </button>
@@ -438,8 +475,8 @@ export default function DashboardPage() {
 
       {/* ================= HOURLY SALES + CHART ================= */}
       {period === "daily" && data.hourly_sales && (
-        <div className="bg-white p-4 rounded-2xl shadow">
-          <h2 className="font-bold mb-3">⏰ Hourly Sales (WIB)</h2>
+        <div className="app-card rounded-[22px] p-4 sm:p-5">
+          <h2 className="mb-3 font-bold">Penjualan per jam · WIB</h2>
 
           {data.hourly_sales.length === 0 && (
             <div className="text-gray-500 text-sm">
@@ -469,8 +506,8 @@ export default function DashboardPage() {
       )}
 
       {/* ================= TRANSACTION LIST ================= */}
-      <div className="bg-white p-4 rounded-2xl shadow">
-        <h2 className="font-bold mb-3">🧾 Transactions</h2>
+      <div className="app-card rounded-[22px] p-4 sm:p-5">
+        <h2 className="mb-3 font-bold">Transaksi terbaru</h2>
 
         {data.transactions?.length === 0 && (
           <div className="text-gray-500 text-sm">
@@ -483,7 +520,7 @@ export default function DashboardPage() {
           .map((tx: any) => (
           <div
             key={tx.id}
-            className="flex justify-between items-center py-2 border-b last:border-none cursor-pointer hover:bg-stone-50 transition"
+            className="flex cursor-pointer items-center justify-between border-b border-[#e8e3d9] py-3 transition last:border-none hover:bg-[#f7f4ed]"
             onClick={async () => {
               const res = await api.get(`/reports/transaction/${tx.id}`);
               setSelectedTx(res.data);
@@ -842,7 +879,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-    </div>
+      </div>
+    </main>
   );
 }
 
@@ -872,11 +910,21 @@ function HourlyChart({ data }: any) {
   );
 }
 
-function Card({ title, value }: any) {
+function Card({ title, value, accent = false, compact = false }: any) {
   return (
-    <div className="bg-white p-4 rounded-2xl shadow">
-      <div className="text-sm text-gray-500">{title}</div>
-      <div className="text-xl md:text-2xl font-bold">{value}</div>
+    <div
+      className={`rounded-[20px] border p-4 shadow-[0_12px_32px_rgba(47,55,49,.05)] ${
+        accent
+          ? "border-[#173f2d] bg-[#173f2d] text-white"
+          : "border-[#e1dcd1] bg-[#fffdf8]"
+      }`}
+    >
+      <div className={`text-xs font-semibold ${accent ? "text-white/60" : "text-[#7a7f7b]"}`}>
+        {title}
+      </div>
+      <div className={`${compact ? "text-lg" : "text-xl sm:text-2xl"} mt-2 break-words font-bold tracking-tight`}>
+        {value}
+      </div>
     </div>
   );
 }
