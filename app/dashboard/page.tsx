@@ -33,8 +33,15 @@ const toWIBHour = (utcHour: number) => {
   return (utcHour + 7) % 24;
 };
 
+const formatPercent = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return "Baru";
+  return `${value > 0 ? "+" : ""}${value}%`;
+};
+
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
+  const [insights, setInsights] = useState<any>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
   const [period, setPeriod] = useState<Period>("daily");
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<number | "">("");
@@ -57,6 +64,19 @@ export default function DashboardPage() {
   const [newBranchId, setNewBranchId] = useState<number | "">("");
   const [stockModalProduct, setStockModalProduct] = useState<any>(null);
   const [newStockValue, setNewStockValue] = useState<number | "">("");
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [showAddMaterial, setShowAddMaterial] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<any>(null);
+  const [newMaterialName, setNewMaterialName] = useState("");
+  const [newMaterialUnit, setNewMaterialUnit] = useState("gram");
+  const [newMaterialBranchId, setNewMaterialBranchId] = useState<number | "">("");
+  const [newMaterialParStock, setNewMaterialParStock] = useState<number | "">("");
+  const [newMaterialThreshold, setNewMaterialThreshold] = useState<number | "">("");
+  const [savingMaterial, setSavingMaterial] = useState(false);
+  const [recipeModalProduct, setRecipeModalProduct] = useState<any>(null);
+  const [recipeRows, setRecipeRows] = useState<Record<number, string>>({});
+  const [savingRecipe, setSavingRecipe] = useState(false);
 
   // ================= PAGINATION =================
   const [productPage, setProductPage] = useState(1);
@@ -108,6 +128,99 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchInsights = async (selected: Period) => {
+    try {
+      setLoadingInsights(true);
+
+      let url = `/reports/insights?period=${selected}`;
+
+      if (start && end) {
+        url = `/reports/insights?start=${start}&end=${end}`;
+      }
+
+      if (branchId) {
+        url += `&branch_id=${branchId}`;
+      }
+
+      const res = await api.get(url);
+      setInsights(res.data);
+    } catch (err) {
+      console.error("Insight error:", err);
+    } finally {
+      setLoadingInsights(false);
+    }
+  };
+
+  const fetchMaterials = async () => {
+    try {
+      setLoadingMaterials(true);
+
+      let url = "/materials";
+
+      if (branchId) {
+        url += `?branch_id=${branchId}`;
+      }
+
+      const res = await api.get(url);
+      setMaterials(res.data);
+    } catch (err) {
+      console.error("Material fetch error", err);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  };
+
+  const resetMaterialForm = () => {
+    setNewMaterialName("");
+    setNewMaterialUnit("gram");
+    setNewMaterialBranchId("");
+    setNewMaterialParStock("");
+    setNewMaterialThreshold("");
+  };
+
+  const openRecipeEditor = async (product: any) => {
+    try {
+      const res = await api.get(`/materials/recipes/product/${product.id}`);
+      const rows: Record<number, string> = {};
+
+      res.data.items?.forEach((item: any) => {
+        rows[item.material_id] = String(item.qty_per_unit);
+      });
+
+      setRecipeRows(rows);
+      setRecipeModalProduct(product);
+    } catch (err) {
+      console.error("Recipe fetch error", err);
+      alert("Gagal mengambil resep produk");
+    }
+  };
+
+  const saveRecipe = async () => {
+    if (!recipeModalProduct) return;
+
+    const items = Object.entries(recipeRows)
+      .map(([materialId, qty]) => ({
+        material_id: Number(materialId),
+        qty_per_unit: Number(qty || 0),
+      }))
+      .filter((item) => item.qty_per_unit > 0);
+
+    try {
+      setSavingRecipe(true);
+      await api.put(`/materials/recipes/product/${recipeModalProduct.id}`, {
+        items,
+      });
+      setRecipeModalProduct(null);
+      setRecipeRows({});
+      fetchInsights(period);
+      alert("Resep takaran tersimpan");
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Gagal menyimpan resep");
+    } finally {
+      setSavingRecipe(false);
+    }
+  };
+
   // ================= HANDLE ADD PRODUCT =================
   const handleAddProduct = async () => {
     if (!newName || newPrice === "" || newCostPrice === "") {
@@ -152,6 +265,44 @@ export default function DashboardPage() {
     }
   };
 
+  const handleAddMaterial = async () => {
+    if (!newMaterialName || !newMaterialUnit) {
+      alert("Nama bahan dan satuan wajib diisi");
+      return;
+    }
+
+    const materialBranchId = newMaterialBranchId || branchId;
+    if (!materialBranchId) {
+      alert("Pilih cabang bahan dulu");
+      return;
+    }
+
+    try {
+      setSavingMaterial(true);
+
+      await api.post("/materials", {
+        name: newMaterialName,
+        unit: newMaterialUnit,
+        branch_id: materialBranchId,
+        par_stock:
+          newMaterialParStock === "" ? 0 : Number(newMaterialParStock),
+        alert_threshold:
+          newMaterialThreshold === "" ? 0 : Number(newMaterialThreshold),
+        is_active: true,
+      });
+
+      alert("Bahan opname berhasil ditambahkan");
+      resetMaterialForm();
+      setShowAddMaterial(false);
+      fetchMaterials();
+      fetchInsights(period);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || "Gagal menambahkan bahan");
+    } finally {
+      setSavingMaterial(false);
+    }
+  };
+
   // ================= ROLE GUARD =================
   useEffect(() => {
     const role = localStorage.getItem("role");
@@ -176,10 +327,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData(period);
+    fetchInsights(period);
   }, [period, branchId, start, end]);
 
   useEffect(() => {
     fetchProducts();
+    fetchMaterials();
   }, [branchId]);
   
   useEffect(() => {
@@ -330,6 +483,216 @@ export default function DashboardPage() {
         <Card title="Pembayaran QRIS" value={`Rp ${data.qris_total.toLocaleString("id-ID")}`} />
       </div>
 
+      {/* ================= SALES INSIGHTS ================= */}
+      <div className="app-card overflow-hidden rounded-[22px] p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#92775e]">
+              Insight evaluasi
+            </p>
+            <h2 className="mt-1 text-xl font-bold">Sinyal penjualan & operasional</h2>
+          </div>
+          {loadingInsights && (
+            <span className="rounded-full bg-[#f0ece3] px-3 py-1 text-xs font-semibold text-[#7a6754]">
+              Memuat insight...
+            </span>
+          )}
+        </div>
+
+        {insights ? (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <InsightCard
+                title="Growth revenue"
+                value={formatPercent(insights.summary?.revenue_change_percent)}
+                caption={`Vs ${insights.previous_start_date}–${insights.previous_end_date}`}
+              />
+              <InsightCard
+                title="Avg transaksi"
+                value={`Rp ${(insights.summary?.average_ticket || 0).toLocaleString("id-ID")}`}
+                caption={`${insights.summary?.transactions || 0} transaksi`}
+              />
+              <InsightCard
+                title="Jam ramai"
+                value={
+                  insights.peak_hour
+                    ? `${String(insights.peak_hour.hour).padStart(2, "0")}:00`
+                    : "-"
+                }
+                caption={
+                  insights.best_day
+                    ? `Hari kuat: ${insights.best_day.day}`
+                    : "Belum cukup data"
+                }
+              />
+            </div>
+
+            {insights.recommendations?.length > 0 && (
+              <div className="rounded-[18px] border border-[#d7e4d6] bg-[#eef6ee] p-4">
+                <h3 className="font-bold text-[#173f2d]">Rekomendasi cepat</h3>
+                <div className="mt-2 space-y-2 text-sm text-[#425047]">
+                  {insights.recommendations.map((item: string, index: number) => (
+                    <div key={index} className="flex gap-2">
+                      <span className="mt-0.5 text-[#78a06d]">•</span>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="rounded-[18px] border border-[#e2ddd2] bg-[#f8f5ef] p-4">
+                <h3 className="font-bold">Kontributor produk</h3>
+                <div className="mt-3 space-y-3">
+                  {insights.top_products?.slice(0, 4).map((product: any) => (
+                    <div key={product.id}>
+                      <div className="mb-1 flex justify-between gap-3 text-sm">
+                        <span className="font-semibold">{product.name}</span>
+                        <span>{product.share}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#e3ded4]">
+                        <div
+                          className="h-full rounded-full bg-[#173f2d]"
+                          style={{ width: `${Math.min(product.share, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {insights.top_products?.length === 0 && (
+                    <div className="text-sm text-[#7a7f7b]">Belum ada penjualan.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[18px] border border-[#e2ddd2] bg-[#f8f5ef] p-4">
+                <h3 className="font-bold">Mix pembayaran</h3>
+                <div className="mt-3 space-y-3">
+                  {insights.payment_mix?.map((payment: any) => (
+                    <div key={payment.method}>
+                      <div className="mb-1 flex justify-between gap-3 text-sm">
+                        <span className="font-semibold uppercase">{payment.method}</span>
+                        <span>{payment.share}% · Rp {payment.total.toLocaleString("id-ID")}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#e3ded4]">
+                        <div
+                          className="h-full rounded-full bg-[#355e81]"
+                          style={{ width: `${Math.min(payment.share, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {insights.payment_mix?.length === 0 && (
+                    <div className="text-sm text-[#7a7f7b]">Belum ada pembayaran.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="rounded-[18px] border border-[#ead7c0] bg-[#fff8ed] p-4">
+                <h3 className="font-bold text-[#8a642c]">Produk stok rendah</h3>
+                <div className="mt-3 space-y-2">
+                  {insights.low_stock_products?.slice(0, 5).map((product: any) => (
+                    <div key={product.id} className="flex justify-between rounded-xl bg-white/70 px-3 py-2 text-sm">
+                      <span>{product.name}</span>
+                      <span className="font-bold">{product.stock} tersisa</span>
+                    </div>
+                  ))}
+                  {insights.low_stock_products?.length === 0 && (
+                    <div className="text-sm text-[#7a7f7b]">Stok produk aman.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[18px] border border-[#d7e4d6] bg-[#f4faf4] p-4">
+                <h3 className="font-bold text-[#173f2d]">Selisih bahan hari ini</h3>
+                <div className="mt-3 space-y-2">
+                  {insights.material_variance?.slice(0, 5).map((material: any) => (
+                    <div key={material.id} className="flex justify-between rounded-xl bg-white/70 px-3 py-2 text-sm">
+                      <span>{material.name}</span>
+                      <span className="font-bold">
+                        {material.used_qty ?? "-"} {material.unit}
+                      </span>
+                    </div>
+                  ))}
+                  {insights.material_variance?.length === 0 && (
+                    <div className="text-sm text-[#7a7f7b]">Belum ada data bahan.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[18px] border border-[#d9c6a7] bg-[#fff8ed] p-4">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h3 className="font-bold text-[#8a642c]">Kontrol takaran resep</h3>
+                  <p className="text-xs text-[#8a7b68]">
+                    Bandingkan pemakaian bahan teoritis dari resep menu dengan stok opname aktual.
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-[#8a7b68]">
+                  Actual = stok awal - stok akhir
+                </span>
+              </div>
+
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {insights.recipe_variance?.slice(0, 6).map((row: any) => (
+                  <div key={row.material_id} className="rounded-xl bg-white/75 p-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-bold">{row.material_name}</div>
+                        <div className="mt-1 text-xs text-[#7a7f7b]">
+                          Standar {row.expected_qty} {row.unit} · Aktual{" "}
+                          {row.actual_qty ?? "-"} {row.unit}
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                          row.status === "over_usage"
+                            ? "bg-[#f6e3df] text-[#a24f42]"
+                            : row.status === "under_usage"
+                            ? "bg-[#e7eef2] text-[#355e81]"
+                            : row.status === "ok"
+                            ? "bg-[#e2f0e4] text-[#27613f]"
+                            : "bg-[#eee8dd] text-[#7a6754]"
+                        }`}
+                      >
+                        {row.status === "over_usage"
+                          ? `+${row.variance_percent}%`
+                          : row.status === "under_usage"
+                          ? `${row.variance_percent}%`
+                          : row.status === "ok"
+                          ? "Sesuai"
+                          : "Butuh opname"}
+                      </span>
+                    </div>
+                    {row.product_breakdown?.length > 0 && (
+                      <div className="mt-2 text-xs text-[#8a7b68]">
+                        {row.product_breakdown
+                          .slice(0, 2)
+                          .map((item: any) => `${item.product_name}: ${item.qty_sold} cup`)
+                          .join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {insights.recipe_variance?.length === 0 && (
+                  <div className="rounded-xl bg-white/70 p-4 text-sm text-[#7a7f7b]">
+                    Belum ada resep/takaran menu untuk dihitung.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-[18px] border border-dashed border-[#d7d1c4] bg-white/40 p-6 text-center text-sm text-[#7a7f7b]">
+            Insight belum tersedia.
+          </div>
+        )}
+      </div>
+
       {/* ================= REVENUE VS PROFIT ================= */}
       {data.trend_sales && (
         <div className="app-card overflow-hidden rounded-[22px] p-4 sm:p-5">
@@ -368,6 +731,121 @@ export default function DashboardPage() {
             <span className="font-medium">{p.qty} pcs</span>
           </div>
         ))}
+      </div>
+
+      {/* ================= MATERIAL MANAGEMENT ================= */}
+      <div className="app-card rounded-[22px] p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#92775e]">
+              Stok opname
+            </p>
+            <h2 className="mt-1 font-bold">Manajemen bahan opname</h2>
+            <p className="mt-1 text-xs text-[#7a7f7b]">
+              Tambahkan jenis bahan yang akan ditimbang kasir setiap stok awal dan stok akhir.
+            </p>
+          </div>
+
+          <button
+            onClick={() => {
+              setNewMaterialBranchId(branchId || "");
+              setShowAddMaterial(true);
+            }}
+            className="min-h-10 rounded-full bg-[#173f2d] px-4 text-sm font-semibold text-white"
+          >
+            + Tambah bahan
+          </button>
+        </div>
+
+        {loadingMaterials && (
+          <div className="text-sm text-gray-500">Loading bahan opname...</div>
+        )}
+
+        {!loadingMaterials && materials.length === 0 && (
+          <div className="rounded-[18px] border border-dashed border-[#d7d1c4] bg-white/40 p-6 text-center">
+            <div className="text-3xl">⚖️</div>
+            <p className="mt-2 font-semibold">Belum ada bahan opname</p>
+            <p className="mt-1 text-sm text-[#7a7f7b]">
+              Klik “Tambah bahan” untuk membuat daftar bahan yang muncul di POS kasir.
+            </p>
+          </div>
+        )}
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          {materials.map((material: any) => (
+            <div
+              key={material.id}
+              className="rounded-[18px] border border-[#e2ddd2] bg-[#f8f5ef] p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-bold">{material.name}</div>
+                  <div className="mt-1 text-xs text-[#7a7f7b]">
+                    Cabang #{material.branch_id} · Satuan {material.unit}
+                  </div>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    material.stock_status === "low"
+                      ? "bg-[#f6e3df] text-[#a24f42]"
+                      : material.stock_status === "ok"
+                      ? "bg-[#e2f0e4] text-[#27613f]"
+                      : "bg-[#eee8dd] text-[#7a6754]"
+                  }`}
+                >
+                  {material.stock_status === "low"
+                    ? "Low"
+                    : material.stock_status === "ok"
+                    ? "OK"
+                    : "Belum opname"}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="rounded-xl bg-white/70 p-2">
+                  <div className="text-[#7a7f7b]">Stok awal</div>
+                  <div className="mt-1 font-bold">
+                    {material.latest_opening_qty ?? "-"} {material.unit}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-white/70 p-2">
+                  <div className="text-[#7a7f7b]">Stok akhir</div>
+                  <div className="mt-1 font-bold">
+                    {material.latest_closing_qty ?? "-"} {material.unit}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-white/70 p-2">
+                  <div className="text-[#7a7f7b]">Batas min</div>
+                  <div className="mt-1 font-bold">
+                    {material.alert_threshold || 0} {material.unit}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setEditingMaterial(material)}
+                  className="min-h-9 rounded-full bg-[#e7eef2] px-3 text-xs font-semibold text-[#355e81]"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm("Nonaktifkan bahan ini dari daftar opname?")) return;
+                    await api.put(`/materials/${material.id}`, {
+                      is_active: false,
+                    });
+                    fetchMaterials();
+                    fetchInsights(period);
+                  }}
+                  className="min-h-9 rounded-full bg-[#f6e3df] px-3 text-xs font-semibold text-[#a24f42]"
+                >
+                  Nonaktifkan
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ================= PRODUCT MANAGEMENT ================= */}
@@ -421,6 +899,13 @@ export default function DashboardPage() {
                 className="min-h-9 rounded-full bg-[#e7eef2] px-3 text-xs font-semibold text-[#355e81]"
               >
                 Edit
+              </button>
+
+              <button
+                onClick={() => openRecipeEditor(p)}
+                className="min-h-9 rounded-full bg-[#eef6ee] px-3 text-xs font-semibold text-[#27613f]"
+              >
+                Resep
               </button>
 
               <button
@@ -879,6 +1364,300 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ================= ADD MATERIAL MODAL ================= */}
+      {showAddMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#92775e]">
+                Stok opname
+              </p>
+              <h2 className="mt-1 text-xl font-bold">Tambah bahan opname</h2>
+              <p className="mt-1 text-sm text-[#7a7f7b]">
+                Bahan ini akan muncul di menu Opname kasir sesuai cabang.
+              </p>
+            </div>
+
+            <select
+              className="field px-3 text-sm"
+              value={newMaterialBranchId}
+              onChange={(e) =>
+                setNewMaterialBranchId(e.target.value === "" ? "" : Number(e.target.value))
+              }
+            >
+              <option value="">Pilih Cabang</option>
+              <option value={1}>Cipinang</option>
+              <option value={2}>Cawang</option>
+              <option value={3}>BKT</option>
+            </select>
+
+            <input
+              type="text"
+              placeholder="Nama bahan, contoh: Susu Full Cream"
+              className="field px-3 text-sm"
+              value={newMaterialName}
+              onChange={(e) => setNewMaterialName(e.target.value)}
+            />
+
+            <select
+              className="field px-3 text-sm"
+              value={newMaterialUnit}
+              onChange={(e) => setNewMaterialUnit(e.target.value)}
+            >
+              <option value="gram">gram</option>
+              <option value="ml">ml</option>
+              <option value="pcs">pcs</option>
+              <option value="cup">cup</option>
+              <option value="pack">pack</option>
+            </select>
+
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                min={0}
+                placeholder="Stok ideal"
+                className="field px-3 text-sm"
+                value={newMaterialParStock}
+                onChange={(e) =>
+                  setNewMaterialParStock(e.target.value === "" ? "" : Number(e.target.value))
+                }
+              />
+              <input
+                type="number"
+                min={0}
+                placeholder="Batas minimum"
+                className="field px-3 text-sm"
+                value={newMaterialThreshold}
+                onChange={(e) =>
+                  setNewMaterialThreshold(e.target.value === "" ? "" : Number(e.target.value))
+                }
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setShowAddMaterial(false);
+                  resetMaterialForm();
+                }}
+                className="min-h-12 flex-1 rounded-[14px] border border-[#dcd6ca] bg-white font-semibold"
+              >
+                Batal
+              </button>
+
+              <button
+                onClick={handleAddMaterial}
+                disabled={savingMaterial}
+                className="min-h-12 flex-1 rounded-[14px] bg-[#173f2d] font-semibold text-white disabled:opacity-50"
+              >
+                {savingMaterial ? "Menyimpan..." : "Simpan bahan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= EDIT MATERIAL MODAL ================= */}
+      {editingMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#92775e]">
+                Stok opname
+              </p>
+              <h2 className="mt-1 text-xl font-bold">Edit bahan opname</h2>
+            </div>
+
+            <select
+              className="field px-3 text-sm"
+              value={editingMaterial.branch_id}
+              onChange={(e) =>
+                setEditingMaterial({
+                  ...editingMaterial,
+                  branch_id: Number(e.target.value),
+                })
+              }
+            >
+              <option value={1}>Cipinang</option>
+              <option value={2}>Cawang</option>
+              <option value={3}>BKT</option>
+            </select>
+
+            <input
+              type="text"
+              className="field px-3 text-sm"
+              value={editingMaterial.name}
+              onChange={(e) =>
+                setEditingMaterial({
+                  ...editingMaterial,
+                  name: e.target.value,
+                })
+              }
+            />
+
+            <select
+              className="field px-3 text-sm"
+              value={editingMaterial.unit}
+              onChange={(e) =>
+                setEditingMaterial({
+                  ...editingMaterial,
+                  unit: e.target.value,
+                })
+              }
+            >
+              <option value="gram">gram</option>
+              <option value="ml">ml</option>
+              <option value="pcs">pcs</option>
+              <option value="cup">cup</option>
+              <option value="pack">pack</option>
+            </select>
+
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                min={0}
+                className="field px-3 text-sm"
+                value={editingMaterial.par_stock ?? 0}
+                onChange={(e) =>
+                  setEditingMaterial({
+                    ...editingMaterial,
+                    par_stock: Number(e.target.value),
+                  })
+                }
+              />
+              <input
+                type="number"
+                min={0}
+                className="field px-3 text-sm"
+                value={editingMaterial.alert_threshold ?? 0}
+                onChange={(e) =>
+                  setEditingMaterial({
+                    ...editingMaterial,
+                    alert_threshold: Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setEditingMaterial(null)}
+                className="min-h-12 flex-1 rounded-[14px] border border-[#dcd6ca] bg-white font-semibold"
+              >
+                Batal
+              </button>
+
+              <button
+                onClick={async () => {
+                  await api.put(`/materials/${editingMaterial.id}`, {
+                    name: editingMaterial.name,
+                    unit: editingMaterial.unit,
+                    branch_id: editingMaterial.branch_id,
+                    par_stock: editingMaterial.par_stock,
+                    alert_threshold: editingMaterial.alert_threshold,
+                    is_active: true,
+                  });
+                  setEditingMaterial(null);
+                  fetchMaterials();
+                  fetchInsights(period);
+                }}
+                className="min-h-12 flex-1 rounded-[14px] bg-[#173f2d] font-semibold text-white"
+              >
+                Simpan perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PRODUCT RECIPE MODAL ================= */}
+      {recipeModalProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-2xl bg-white p-6">
+            <div className="pr-8">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#92775e]">
+                Resep takaran
+              </p>
+              <h2 className="mt-1 text-xl font-bold">{recipeModalProduct.name}</h2>
+              <p className="mt-1 text-sm text-[#7a7f7b]">
+                Isi komposisi bahan untuk 1 cup/menu. Sistem akan mengalikan takaran ini dengan jumlah penjualan.
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-[18px] border border-[#ead7c0] bg-[#fff8ed] p-3 text-sm text-[#6d5a42]">
+              Contoh: kalau 1 cup butuh 20 gram biji kopi dan terjual 10 cup,
+              maka standar pemakaian biji kopi = 200 gram.
+            </div>
+
+            <div className="mt-4 min-h-0 flex-1 overflow-auto pr-1">
+              <div className="space-y-2">
+                {materials
+                  .filter((material: any) => material.branch_id === recipeModalProduct.branch_id)
+                  .map((material: any) => (
+                    <label
+                      key={material.id}
+                      className="grid grid-cols-[1fr_150px] items-center gap-3 rounded-[16px] border border-[#e2ddd2] bg-[#f8f5ef] p-3"
+                    >
+                      <span>
+                        <span className="block font-semibold">{material.name}</span>
+                        <span className="mt-1 block text-xs text-[#7a7f7b]">
+                          Satuan {material.unit} · Cabang #{material.branch_id}
+                        </span>
+                      </span>
+
+                      <span className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={recipeRows[material.id] ?? ""}
+                          onChange={(e) =>
+                            setRecipeRows((prev) => ({
+                              ...prev,
+                              [material.id]: e.target.value,
+                            }))
+                          }
+                          className="field min-h-12 px-3 pr-14 text-right text-sm"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#8b7d6c]">
+                          / {material.unit}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+
+                {materials.filter((material: any) => material.branch_id === recipeModalProduct.branch_id).length === 0 && (
+                  <div className="rounded-[18px] border border-dashed border-[#d7d1c4] bg-white/40 p-6 text-center text-sm text-[#7a7f7b]">
+                    Belum ada bahan untuk cabang produk ini. Tambahkan bahan opname dulu.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => {
+                  setRecipeModalProduct(null);
+                  setRecipeRows({});
+                }}
+                className="min-h-12 flex-1 rounded-[14px] border border-[#dcd6ca] bg-white font-semibold"
+              >
+                Batal
+              </button>
+
+              <button
+                onClick={saveRecipe}
+                disabled={savingRecipe}
+                className="min-h-12 flex-1 rounded-[14px] bg-[#173f2d] font-semibold text-white disabled:opacity-50"
+              >
+                {savingRecipe ? "Menyimpan..." : "Simpan resep"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </main>
   );
@@ -925,6 +1704,18 @@ function Card({ title, value, accent = false, compact = false }: any) {
       <div className={`${compact ? "text-lg" : "text-xl sm:text-2xl"} mt-2 break-words font-bold tracking-tight`}>
         {value}
       </div>
+    </div>
+  );
+}
+
+function InsightCard({ title, value, caption }: any) {
+  return (
+    <div className="rounded-[18px] border border-[#e2ddd2] bg-[#fffdf8] p-4">
+      <div className="text-xs font-semibold text-[#7a7f7b]">{title}</div>
+      <div className="mt-2 text-2xl font-black tracking-tight text-[#173f2d]">
+        {value}
+      </div>
+      <div className="mt-1 text-xs text-[#8a8f89]">{caption}</div>
     </div>
   );
 }

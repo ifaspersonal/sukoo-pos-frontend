@@ -6,6 +6,25 @@ import { api } from "../lib/api";
 import ReceiptPreview from "./ReceiptPreview";
 import { ChevronDownIcon, PrinterIcon } from "./Icons";
 
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof error.response === "object" &&
+    error.response !== null &&
+    "data" in error.response &&
+    typeof error.response.data === "object" &&
+    error.response.data !== null &&
+    "detail" in error.response.data &&
+    typeof error.response.data.detail === "string"
+  ) {
+    return error.response.data.detail;
+  }
+
+  return fallback;
+}
+
 export default function PaymentBar() {
   const { items, clear } = useCart();
 
@@ -102,10 +121,10 @@ export default function PaymentBar() {
   const pay = async (
     method: "cash" | "qris" | "redeem",
     redeemPointAmount: number = 0
-  ) => {
+  ): Promise<boolean> => {
     if (!items.length) {
       alert("Cart masih kosong");
-      return;
+      return false;
     }
 
     try {
@@ -129,7 +148,7 @@ export default function PaymentBar() {
 
       if (!receiptText) {
         alert("Struk tidak tersedia");
-        return;
+        return false;
       }
 
       await handleAutoPrint(receiptText);
@@ -143,9 +162,11 @@ export default function PaymentBar() {
 
       clear();
       alert("Transaksi sukses!");
-    } catch (e: any) {
+      return true;
+    } catch (e: unknown) {
       console.error(e);
-      alert(e?.response?.data?.detail || "Transaksi gagal");
+      alert(getApiErrorMessage(e, "Transaksi gagal"));
+      return false;
     }
   };
 
@@ -277,8 +298,28 @@ export default function PaymentBar() {
               Konfirmasi Pembayaran
             </h2>
             <p className="text-center text-sm text-[#7a7f7b]">
-              Metode {confirmMethod === "cash" ? "tunai" : "QRIS"}
+              Pilih metode terakhir sebelum transaksi diproses.
             </p>
+
+            <div className="grid grid-cols-2 gap-2 rounded-[18px] bg-[#f0ece3] p-1.5">
+              {(["cash", "qris"] as const).map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  disabled={processing}
+                  onClick={() => setConfirmMethod(method)}
+                  className={`min-h-11 rounded-[13px] text-sm font-bold transition ${
+                    confirmMethod === method
+                      ? "bg-[#173f2d] text-white shadow-sm"
+                      : "text-[#687068] hover:bg-white/70"
+                  }`}
+                >
+                  {method === "cash" ? "Tunai" : "QRIS"}
+                </button>
+              ))}
+            </div>
+
+            {confirmMethod === "qris" && <QrisPreview amount={cartTotal} />}
 
             {/* ITEM LIST */}
             <div className="max-h-44 space-y-2 overflow-auto rounded-[16px] border border-[#e2ddd2] bg-[#f8f5ef] p-3 text-sm">
@@ -310,11 +351,14 @@ export default function PaymentBar() {
                 disabled={processing}
                 onClick={async () => {
                   setProcessing(true);
-                  await pay(confirmMethod);
-                  setConfirmMethod(null);
+                  const paid = await pay(confirmMethod);
                   setProcessing(false);
-                  setSuccess(true);
-                  setTimeout(() => setSuccess(false), 1500);
+
+                  if (paid) {
+                    setConfirmMethod(null);
+                    setSuccess(true);
+                    setTimeout(() => setSuccess(false), 1500);
+                  }
                 }}
                 className="min-h-12 flex-1 rounded-[14px] bg-[#173f2d] font-semibold text-white disabled:opacity-60"
               >
@@ -350,5 +394,42 @@ export default function PaymentBar() {
         />
       )}
     </>
+  );
+}
+
+function QrisPreview({ amount }: { amount: number }) {
+  const cells = Array.from({ length: 49 }, (_, index) => {
+    const row = Math.floor(index / 7);
+    const col = index % 7;
+    return row === 0 ||
+      col === 0 ||
+      row === 6 ||
+      col === 6 ||
+      (row + col) % 3 === 0 ||
+      (row === 3 && col > 1)
+      ? 1
+      : 0;
+  });
+
+  return (
+    <div className="rounded-[20px] border border-[#cfdbe6] bg-[#f5f9fc] p-4 text-center">
+      <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#355e81]">
+        QRIS Demo Lokal
+      </div>
+      <div className="mx-auto mt-3 grid size-36 grid-cols-7 gap-1 rounded-2xl bg-white p-3 shadow-inner">
+        {cells.map((active, index) => (
+          <span
+            key={index}
+            className={`rounded-[3px] ${active ? "bg-[#173f2d]" : "bg-[#e7eef2]"}`}
+          />
+        ))}
+      </div>
+      <div className="mt-3 text-sm text-[#5f6b73]">
+        Tunjukkan layar ini ke pelanggan.
+      </div>
+      <div className="mt-1 text-xl font-black text-[#173f2d]">
+        Rp {amount.toLocaleString("id-ID")}
+      </div>
+    </div>
   );
 }

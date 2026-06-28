@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ProductGrid from "../components/ProductGrid";
 import Cart from "../components/Cart";
 import PaymentBar from "../components/PaymentBar";
+import MaterialOpnamePanel from "../components/MaterialOpnamePanel";
 import {
   CartIcon,
   CloseIcon,
@@ -16,6 +17,7 @@ import SukooLogo from "../components/SukooLogo";
 export default function POSPage() {
   const [search, setSearch] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
+  const [opnameOpen, setOpnameOpen] = useState(false);
   const { total, itemCount } = useCart();
 
   useEffect(() => {
@@ -56,14 +58,24 @@ export default function POSPage() {
                 </div>
               </div>
 
-              <button
-                aria-label="Keluar"
-                onClick={handleLogout}
-                className="flex min-h-10 items-center gap-2 rounded-full border border-[#ded8cc] bg-white px-3 text-sm font-semibold text-[#5e655f] transition hover:bg-[#f4f1ea]"
-              >
-                <LogOutIcon className="size-4" />
-                <span className="hidden sm:inline">Keluar</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpnameOpen(true)}
+                  className="min-h-10 rounded-full border border-[#d9c6a7] bg-[#fff7e8] px-3 text-sm font-semibold text-[#8a642c] transition hover:bg-[#f4ead5]"
+                >
+                  <span className="hidden sm:inline">Opname bahan</span>
+                  <span className="sm:hidden">Opname</span>
+                </button>
+                <button
+                  aria-label="Keluar"
+                  onClick={handleLogout}
+                  className="flex min-h-10 items-center gap-2 rounded-full border border-[#ded8cc] bg-white px-3 text-sm font-semibold text-[#5e655f] transition hover:bg-[#f4f1ea]"
+                >
+                  <LogOutIcon className="size-4" />
+                  <span className="hidden sm:inline">Keluar</span>
+                </button>
+              </div>
             </div>
           </header>
 
@@ -153,6 +165,8 @@ export default function POSPage() {
           </aside>
         </div>
       )}
+
+      <MaterialOpnamePanel open={opnameOpen} onClose={() => setOpnameOpen(false)} />
     </main>
   );
 }
